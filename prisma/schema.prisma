@@ -1,0 +1,308 @@
+// Plataforma de inducción RR.HH. Lavín — esquema completo
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  admin
+  supervisor
+  empleado
+}
+
+enum Programa {
+  administrativo
+  operativo
+  ambos
+}
+
+enum Alcance {
+  empresa
+  puesto
+  ambos
+}
+
+enum TipoItem {
+  paso
+  recurso
+}
+
+enum TipoProgreso {
+  item_visto
+  modulo_completado
+  recorrido_planta
+}
+
+enum TipoPregunta {
+  opcion_multiple
+  verdadero_falso
+}
+
+enum EstadoDuda {
+  pendiente
+  respondida
+}
+
+enum TipoNotificacionRH {
+  recorrido_planta
+  sistemas
+}
+
+enum EstadoNotificacionRH {
+  pendiente
+  atendida
+}
+
+model Area {
+  id        String   @id @default(uuid())
+  nombre    String   @unique
+  activo    Boolean  @default(true)
+  creadoEn  DateTime @default(now())
+
+  usuarios Usuario[]
+}
+
+model Usuario {
+  id                          String    @id @default(uuid())
+  nombre                      String
+  nomina                      String    @unique
+  email                       String?
+  password                    String
+  rol                         Rol       @default(empleado)
+  programa                    Programa?
+  alcance                     Alcance?
+  area                        String?
+  areaId                      String?
+  induccionEmpresaHabilitada  Boolean   @default(false)
+  induccionPuestoHabilitada   Boolean   @default(false)
+  activo                      Boolean   @default(true)
+  primerLogin                 Boolean   @default(true)
+  creadoEn                    DateTime  @default(now())
+  actualizadoEn               DateTime  @updatedAt
+  creadoPor                   String?
+
+  areaRel             Area?           @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  progresos           Progreso[]
+  intentos            IntentoExamen[]
+  videosSubidos       Video[]         @relation("VideosSubidos")
+  logs                LogAuditoria[]
+  creador             Usuario?        @relation("CreadorRelacion", fields: [creadoPor], references: [id])
+  usuariosCreados     Usuario[]       @relation("CreadorRelacion")
+  dudas               Duda[]
+  encuestaRespuestas  EncuestaRespuesta[]
+  notificacionesRH    NotificacionRH[]
+
+  @@index([nomina])
+  @@index([rol, activo])
+  @@index([areaId])
+}
+
+model Modulo {
+  id              String    @id @default(uuid())
+  slug            String    @unique
+  nombre          String
+  descripcion     String
+  programa        Programa
+  alcance         Alcance
+  orden           Int       @default(0)
+  requiereExamen  Boolean   @default(false)
+  activo          Boolean   @default(true)
+  creadoEn        DateTime  @default(now())
+
+  items     ItemModulo[]
+  progresos Progreso[]
+  examenes  Examen[]
+  videos    Video[]
+  dudas     Duda[]
+
+  @@index([programa, alcance, activo])
+}
+
+model ItemModulo {
+  id          String   @id @default(uuid())
+  moduloId    String
+  tipo        TipoItem
+  titulo      String
+  descripcion String?
+  archivoUrl  String?
+  videoUrl    String?
+  icono       String?
+  orden       Int      @default(0)
+  activo      Boolean  @default(true)
+
+  modulo    Modulo     @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  progresos Progreso[]
+
+  @@index([moduloId, orden])
+}
+
+model Progreso {
+  id              String        @id @default(uuid())
+  usuarioId       String
+  moduloId        String
+  itemId          String?
+  tipo            TipoProgreso
+  completado      Boolean       @default(false)
+  fechaCompletado DateTime?
+  metadatos       Json?
+
+  usuario Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  modulo  Modulo      @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  item    ItemModulo? @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, moduloId, itemId, tipo])
+  @@index([usuarioId])
+}
+
+model Examen {
+  id                 String   @id @default(uuid())
+  moduloId           String
+  titulo             String
+  descripcion        String
+  intentosPermitidos Int      @default(3)
+  calificacionMinima Int      @default(70)
+  activo             Boolean  @default(true)
+  creadoEn           DateTime @default(now())
+
+  modulo    Modulo          @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  preguntas Pregunta[]
+  intentos  IntentoExamen[]
+}
+
+model Pregunta {
+  id        String       @id @default(uuid())
+  examenId  String
+  texto     String
+  tipo      TipoPregunta @default(opcion_multiple)
+  orden     Int          @default(0)
+  activo    Boolean      @default(true)
+
+  examen   Examen           @relation(fields: [examenId], references: [id], onDelete: Cascade)
+  opciones OpcionPregunta[]
+
+  @@index([examenId, orden])
+}
+
+model OpcionPregunta {
+  id          String  @id @default(uuid())
+  preguntaId  String
+  texto       String
+  esCorrecta  Boolean @default(false)
+  orden       Int     @default(0)
+
+  pregunta Pregunta @relation(fields: [preguntaId], references: [id], onDelete: Cascade)
+
+  @@index([preguntaId])
+}
+
+model IntentoExamen {
+  id               String    @id @default(uuid())
+  usuarioId        String
+  examenId         String
+  respuestas       Json
+  calificacion     Int       @default(0)
+  aprobado         Boolean   @default(false)
+  duracionSegundos Int       @default(0)
+  iniciadoEn       DateTime  @default(now())
+  finalizadoEn     DateTime?
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  examen  Examen  @relation(fields: [examenId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, examenId])
+}
+
+model Video {
+  id               String   @id @default(uuid())
+  moduloId         String?
+  titulo           String
+  descripcion      String?
+  filename         String
+  mimetype         String
+  tamanioBytes     BigInt
+  duracionSegundos Int?
+  ruta             String
+  subidoPor        String
+  subidoEn         DateTime @default(now())
+  activo           Boolean  @default(true)
+
+  modulo   Modulo? @relation(fields: [moduloId], references: [id], onDelete: SetNull)
+  uploader Usuario @relation("VideosSubidos", fields: [subidoPor], references: [id])
+
+  @@index([moduloId, activo])
+}
+
+model LogAuditoria {
+  id        String   @id @default(uuid())
+  usuarioId String?
+  accion    String
+  detalle   Json?
+  ip        String?
+  fecha     DateTime @default(now())
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([usuarioId, fecha])
+  @@index([accion, fecha])
+}
+
+model Duda {
+  id           String     @id @default(uuid())
+  usuarioId    String
+  moduloId     String
+  texto        String
+  estado       EstadoDuda @default(pendiente)
+  respuesta    String?
+  respondidoEn DateTime?
+  creadoEn     DateTime   @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  modulo  Modulo  @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([moduloId])
+  @@index([estado])
+}
+
+model EncuestaPregunta {
+  id     String  @id @default(uuid())
+  texto  String
+  orden  Int     @default(0)
+  activo Boolean @default(true)
+
+  respuestas EncuestaRespuesta[]
+
+  @@index([orden])
+}
+
+model EncuestaRespuesta {
+  id         String   @id @default(uuid())
+  usuarioId  String
+  preguntaId String
+  valor      String
+  creadoEn   DateTime @default(now())
+
+  usuario  Usuario          @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  pregunta EncuestaPregunta @relation(fields: [preguntaId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, preguntaId])
+  @@index([usuarioId])
+}
+
+model NotificacionRH {
+  id         String               @id @default(uuid())
+  usuarioId  String
+  tipo       TipoNotificacionRH
+  estado     EstadoNotificacionRH @default(pendiente)
+  creadoEn   DateTime             @default(now())
+  atendidaEn DateTime?
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([estado, creadoEn])
+  @@index([usuarioId, tipo])
+}

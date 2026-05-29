@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inducción · RR.HH. Lavín</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="empleado-app">
+<div class="app-shell" id="appShell">
+  <header class="header hidden" id="appHeader">
+    <div class="header-inner">
+      <a href="#inicio" class="logo">
+        <div class="logo-icon" aria-hidden="true"></div>
+        <div>
+          <span class="logo-text">Recursos Humanos</span>
+          <span class="logo-sub">Programa de inducción</span>
+        </div>
+      </a>
+      <div class="header-user">
+        <span class="profile-badge" id="profileBadge"></span>
+        <button type="button" class="btn-text" id="btnChangeProfile">Cambiar perfil</button>
+        <button type="button" class="btn-text" id="btnLogout">Cerrar sesión</button>
+      </div>
+      <nav class="nav" aria-label="Navegación principal" id="mainNav">
+        <a href="#cultura">Cultura</a>
+        <a href="#politicas">Políticas</a>
+        <a href="#herramientas">Herramientas</a>
+        <a href="#contacto">Contacto</a>
+      </nav>
+    </div>
+  </header>
+
+  <div id="mainContent"></div>
+
+  <footer class="app-footer hidden" id="appFooter">
+    <div class="app-footer-inner">
+      <p>© 2026 Recursos Humanos · Programa de inducción · Uso interno</p>
+    </div>
+  </footer>
+</div>
+
+<script src="/assets/api.js"></script>
+<script src="/assets/hero-copy.js"></script>
+<script src="/assets/app.js"></script>
+</body>
+</html>

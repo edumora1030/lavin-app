@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inducción | Recursos Humanos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="page-login">
+  <div class="gate">
+    <div class="gate-panel">
+      <div class="gate-logo">
+        <div class="logo-icon" aria-hidden="true"></div>
+        <div>
+          <span class="logo-text">Recursos Humanos</span>
+          <span class="logo-sub">Programa de inducción</span>
+        </div>
+      </div>
+
+      <div id="stepNomina">
+        <h1 class="gate-title">Accede con tu nómina</h1>
+        <p class="gate-subtitle">Ingresa tu número de nómina para continuar con tu programa de inducción.</p>
+        <form id="ingresoForm" novalidate>
+          <div class="form-group" id="groupNomina">
+            <label for="nomina">Número de nómina</label>
+            <input type="text" id="nomina" name="nomina" required inputmode="numeric" autocomplete="username" placeholder="Ej. 12345">
+            <span class="form-error">Ingresa tu número de nómina.</span>
+          </div>
+          <div id="errBox" class="form-error" style="display:none; margin-bottom:1rem;"></div>
+          <button type="submit" class="btn btn-gate">Continuar</button>
+        </form>
+        <p style="margin-top:1.25rem; font-size:0.8125rem; color:var(--slate-500); text-align:center;">
+          Personal de RR.HH. (admin): si tu cuenta lo requiere, se te pedirá contraseña en el siguiente paso.
+        </p>
+      </div>
+
+      <div id="stepPassword" class="hidden">
+        <h1 class="gate-title">Contraseña de administrador</h1>
+        <p class="gate-subtitle">Tu cuenta requiere contraseña para acceder al panel de RR.HH.</p>
+        <form id="passwordForm" novalidate>
+          <div class="form-group">
+            <label for="password">Contraseña</label>
+            <input type="password" id="password" name="password" required autocomplete="current-password">
+          </div>
+          <div id="errBox2" class="form-error" style="display:none; margin-bottom:1rem;"></div>
+          <button type="submit" class="btn btn-gate">Entrar</button>
+          <button type="button" class="btn-text" id="btnBackNomina" style="display:block; margin:1rem auto 0;">← Cambiar nómina</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+<script src="/assets/api.js"></script>
+<script>
+const ingresoForm = document.getElementById('ingresoForm');
+const passwordForm = document.getElementById('passwordForm');
+const stepNomina = document.getElementById('stepNomina');
+const stepPassword = document.getElementById('stepPassword');
+const err = document.getElementById('errBox');
+const err2 = document.getElementById('errBox2');
+let nominaPendiente = '';
+
+function showError(box, msg) {
+  box.textContent = msg;
+  box.style.display = 'block';
+}
+
+ingresoForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  err.style.display = 'none';
+  const nomina = document.getElementById('nomina').value.trim();
+  if (!nomina) {
+    document.getElementById('groupNomina').classList.add('is-invalid');
+    return;
+  }
+  document.getElementById('groupNomina').classList.remove('is-invalid');
+  nominaPendiente = nomina;
+  try {
+    const data = await API.post('/api/auth/ingreso', { nomina });
+    API.token = data.token;
+    API.user = data.usuario;
+    if (data.usuario.rol === 'admin' || data.usuario.rol === 'supervisor') {
+      location.href = data.usuario.rol === 'admin' ? '/admin/' : '/';
+    } else {
+      location.href = '/';
+    }
+  } catch (e2) {
+    if (e2.codigo === 'REQUIERE_PASSWORD') {
+      stepNomina.classList.add('hidden');
+      stepPassword.classList.remove('hidden');
+      return;
+    }
+    showError(err, e2.message || 'No se pudo iniciar sesión.');
+  }
+});
+
+passwordForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  err2.style.display = 'none';
+  try {
+    const data = await API.post('/api/auth/ingreso', {
+      nomina: nominaPendiente,
+      password: document.getElementById('password').value,
+    });
+    API.token = data.token;
+    API.user = data.usuario;
+    location.href = data.usuario.rol === 'admin' ? '/admin/' : '/';
+  } catch (e2) {
+    showError(err2, e2.message || 'Contraseña incorrecta.');
+  }
+});
+
+document.getElementById('btnBackNomina').addEventListener('click', () => {
+  stepPassword.classList.add('hidden');
+  stepNomina.classList.remove('hidden');
+  err2.style.display = 'none';
+});
+
+</script>
+</body>
+</html>

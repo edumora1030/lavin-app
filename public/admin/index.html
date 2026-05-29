@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel admin · RR.HH. Lavín</title>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <h1>RR.HH. Lavín</h1>
+    <nav>
+      <a href="#dashboard" class="active">Dashboard</a>
+      <a href="#usuarios">Usuarios</a>
+      <a href="#progreso">Progreso</a>
+      <a href="#modulos">Módulos</a>
+      <a href="#videos">Videos</a>
+      <a href="#examenes">Exámenes</a>
+    </nav>
+    <div style="margin-top:30px">
+      <button class="btn ghost" style="width:100%" onclick="API.logout()">Cerrar sesión</button>
+    </div>
+  </aside>
+  <main class="admin-main" id="adminMain"></main>
+</div>
+
+<script src="/assets/api.js"></script>
+<script src="/assets/admin.js"></script>
+</body>
+</html>
