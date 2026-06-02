@@ -15,17 +15,21 @@
           </span>
           <input v-model="q" type="search" placeholder="Buscar nombre o nómina" autocomplete="off">
         </div>
-        <select v-model="frol" class="usuarios-select" aria-label="Filtrar por rol">
-          <option value="">Todos los roles</option>
-          <option value="empleado">Empleado</option>
-          <option value="supervisor">Encargado de área</option>
-          <option value="admin">RH</option>
-        </select>
+        <AdminFilterBar v-model="frol" :options="filtrosRol" aria-label="Filtrar por rol" />
         <button type="button" class="usuarios-btn-primary" @click="abrirCrear">+ Nuevo usuario</button>
       </div>
 
       <div class="usuarios-table-wrap">
         <table class="usuarios-table">
+          <colgroup>
+            <col class="col-nomina">
+            <col class="col-nombre">
+            <col class="col-tipo">
+            <col class="col-programa">
+            <col class="col-area">
+            <col class="col-estado">
+            <col class="col-acciones">
+          </colgroup>
           <thead>
             <tr>
               <th>Nómina</th>
@@ -59,8 +63,8 @@
               <td>
                 <span class="usuarios-badge" :class="`usuarios-badge--${u.rol}`">{{ rolLabel(u.rol) }}</span>
               </td>
-              <td><span :class="{ 'usuarios-dash': !u.programa }">{{ programaLabel(u.programa) }}</span></td>
-              <td>{{ areaNombre(u) }}</td>
+              <td><span :class="{ 'usuarios-dash': programaDisplay(u) === '—' }">{{ programaDisplay(u) }}</span></td>
+              <td><span :class="{ 'usuarios-dash': areaNombre(u) === '—' }">{{ areaNombre(u) }}</span></td>
               <td>
                 <span class="usuarios-active" :class="{ 'usuarios-active--off': !u.activo }" :title="u.activo ? 'Activo' : 'Inactivo'">
                   {{ u.activo ? 'Activo' : 'Inactivo' }}
@@ -68,20 +72,35 @@
               </td>
               <td>
                 <div class="usuarios-actions">
-                  <button type="button" class="usuarios-action-btn" @click="abrirEditar(u)">Editar</button>
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    title="Editar usuario"
+                    aria-label="Editar usuario"
+                    @click="abrirEditar(u)"
+                  >
+                    <Pencil :size="15" stroke-width="2" />
+                  </button>
                   <button
                     v-if="u.activo"
                     type="button"
-                    class="usuarios-action-btn usuarios-action-btn--danger"
+                    class="icon-btn icon-btn--danger"
+                    title="Deshabilitar usuario"
+                    aria-label="Deshabilitar usuario"
                     @click="toggleActivo(u, false)"
-                  >Deshabilitar</button>
+                  >
+                    <Ban :size="15" stroke-width="2" />
+                  </button>
                   <button
                     v-else
                     type="button"
-                    class="usuarios-action-btn"
-                    style="background:#dcfce7;border-color:#bbf7d0;color:#16a34a;"
+                    class="icon-btn icon-btn--success"
+                    title="Habilitar usuario"
+                    aria-label="Habilitar usuario"
                     @click="toggleActivo(u, true)"
-                  >Habilitar</button>
+                  >
+                    <CircleCheck :size="15" stroke-width="2" />
+                  </button>
                 </div>
               </td>
             </tr>
@@ -134,7 +153,7 @@
           <label>Área</label>
           <select v-model="form.areaId">
             <option value="">— Sin área —</option>
-            <option v-for="a in areas" :key="a.id" :value="a.id">{{ a.nombre }}</option>
+            <option v-for="a in areasActivas" :key="a.id" :value="a.id">{{ a.nombre }}</option>
           </select>
         </div>
         <div v-if="form.rol === 'empleado'" style="margin:12px 0;">
@@ -158,8 +177,14 @@
 
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
+import { Pencil, Ban, CircleCheck } from '@lucide/vue';
+import { useAppAlert } from '../../composables/useAppAlert';
+import { useAppConfirm } from '../../composables/useAppConfirm';
 import { api } from '../../api';
 import AppModal from '../../components/AppModal.vue';
+import AdminFilterBar from '../../components/AdminFilterBar.vue';
+const { showAlert } = useAppAlert();
+const { showConfirm } = useAppConfirm();
 
 const q = ref('');
 const frol = ref('');
@@ -172,6 +197,15 @@ const form = ref(emptyForm());
 
 const currentPage = ref(1);
 const pageSize = ref(10);
+
+const areasActivas = computed(() => areas.value.filter((a) => a.activo));
+
+const filtrosRol = computed(() => [
+  { value: '', label: 'Todos', count: list.value.length },
+  { value: 'empleado', label: 'Empleado', count: list.value.filter((u) => u.rol === 'empleado').length },
+  { value: 'supervisor', label: 'Encargado', count: list.value.filter((u) => u.rol === 'supervisor').length },
+  { value: 'admin', label: 'RH', count: list.value.filter((u) => u.rol === 'admin').length },
+]);
 
 function emptyForm() {
   return {
@@ -187,9 +221,10 @@ function rolLabel(r) {
   return 'Empleado';
 }
 
-function programaLabel(p) {
-  if (p === 'administrativo') return 'Administrativo';
-  if (p === 'operativo') return 'Operativo';
+function programaDisplay(u) {
+  if (u.rol !== 'empleado') return '—';
+  if (u.programa === 'administrativo') return 'Administrativo';
+  if (u.programa === 'operativo') return 'Operativo';
   return '—';
 }
 
@@ -272,7 +307,7 @@ async function guardar() {
     const u = await api.post('/api/usuarios', payload);
     if (u.rol === 'admin' || u.rol === 'supervisor') {
       const ult4 = String(u.nomina).slice(-4).padStart(4, '0');
-      alert(`Usuario creado. Contraseña inicial: ${ult4}Lavin2024`);
+      showAlert({ title: 'Usuario creado', message: `Contraseña inicial: ${ult4}Lavin2024`, variant: 'info' });
     }
   }
   modal.value = null;
@@ -280,8 +315,13 @@ async function guardar() {
 }
 
 async function toggleActivo(u, activo) {
-  const msg = activo ? `¿Habilitar a ${u.nombre}?` : `¿Deshabilitar a ${u.nombre}?`;
-  if (!confirm(msg)) return;
+  const ok = await showConfirm({
+    title: activo ? '¿Habilitar usuario?' : '¿Deshabilitar usuario?',
+    message: activo ? `${u.nombre} podrá iniciar sesión nuevamente.` : `${u.nombre} no podrá acceder al sistema.`,
+    variant: activo ? 'info' : 'danger',
+    confirmLabel: activo ? 'Habilitar' : 'Deshabilitar',
+  });
+  if (!ok) return;
   await api.put(`/api/usuarios/${u.id}`, { activo });
   await load();
 }

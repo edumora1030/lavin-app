@@ -6,11 +6,7 @@
     </div>
 
     <div class="admin-toolbar">
-      <select v-model="filtroEstado" class="form-input" style="width:auto;">
-        <option value="">Todas</option>
-        <option value="pendiente">Pendientes</option>
-        <option value="atendida">Atendidas</option>
-      </select>
+      <AdminFilterBar v-model="filtroEstado" :options="filtros" aria-label="Filtrar notificaciones" />
     </div>
 
     <div v-if="loading" style="color:var(--slate-500)">Cargando…</div>
@@ -46,11 +42,14 @@
                 <button
                   v-if="n.estado === 'pendiente'"
                   type="button"
-                  class="admin-btn admin-btn--primary"
+                  class="icon-btn icon-btn--success"
+                  :class="{ 'is-loading': atendiendo === n.id }"
                   :disabled="atendiendo === n.id"
+                  title="Marcar como atendida"
+                  aria-label="Marcar como atendida"
                   @click="atender(n)"
                 >
-                  {{ atendiendo === n.id ? 'Guardando…' : 'Marcar atendida' }}
+                  <CircleCheck :size="15" stroke-width="2" />
                 </button>
                 <span v-else style="font-size:0.8125rem; color:var(--slate-500);">
                   {{ n.atendidaEn ? formatFecha(n.atendidaEn) : '—' }}
@@ -69,7 +68,9 @@
 
 <script setup>
 import { ref, computed, inject, onMounted } from 'vue';
+import { CircleCheck } from '@lucide/vue';
 import { api } from '../../api';
+import AdminFilterBar from '../../components/AdminFilterBar.vue';
 
 const refreshNotificacionesCount = inject('refreshNotificacionesCount', null);
 
@@ -77,6 +78,12 @@ const loading = ref(true);
 const notificaciones = ref([]);
 const filtroEstado = ref('pendiente');
 const atendiendo = ref(null);
+
+const filtros = computed(() => [
+  { value: '', label: 'Todas', count: notificaciones.value.length },
+  { value: 'pendiente', label: 'Pendientes', count: notificaciones.value.filter((n) => n.estado === 'pendiente').length },
+  { value: 'atendida', label: 'Atendidas', count: notificaciones.value.filter((n) => n.estado === 'atendida').length },
+]);
 
 const notificacionesFiltradas = computed(() => {
   if (!filtroEstado.value) return notificaciones.value;
@@ -119,5 +126,8 @@ async function atender(n) {
   }
 }
 
-onMounted(load);
+onMounted(async () => {
+  await load();
+  refreshNotificacionesCount?.();
+});
 </script>

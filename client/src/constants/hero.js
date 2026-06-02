@@ -2,7 +2,7 @@ export const HERO_COPY = {
   administrativo: {
     empresa: {
       heroBadge: 'Administrativo · Inducción a la empresa',
-      heroTitle: 'Bienvenido/a a Lavín',
+      heroTitle: 'Bienvenido(a) a Industrias Lavin',
       heroDesc: 'Conoce la cultura corporativa, el marco normativo general y los canales institucionales de la organización.',
       scopeLabel: 'Inducción a la empresa',
       programName: 'Programa de Inducción Administrativo',
@@ -20,7 +20,7 @@ export const HERO_COPY = {
   operativo: {
     empresa: {
       heroBadge: 'Operativo · Inducción a la empresa',
-      heroTitle: 'Bienvenido/a a Lavín',
+      heroTitle: 'Bienvenido(a) a Industrias Lavin',
       heroDesc: 'Conoce la empresa, la cultura en planta, normas generales de seguridad y tu lugar en la organización.',
       scopeLabel: 'Inducción a la empresa',
       programName: 'Programa de Inducción Operativo',

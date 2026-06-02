@@ -16,6 +16,20 @@ exports.crear = async (req, res) => {
   return res.status(201).json(duda);
 };
 
+exports.countPendientes = async (req, res) => {
+  const total = await prisma.duda.count({ where: { estado: 'pendiente' } });
+  return res.json({ total });
+};
+
+exports.listarMias = async (req, res) => {
+  const dudas = await prisma.duda.findMany({
+    where: { usuarioId: req.usuario.id },
+    orderBy: { creadoEn: 'desc' },
+    include: { modulo: { select: { id: true, nombre: true } } },
+  });
+  return res.json(dudas);
+};
+
 exports.listar = async (req, res) => {
   const { estado, moduloId } = req.query;
   const where = {};

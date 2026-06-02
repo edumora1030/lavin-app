@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const { Errores } = require('../utils/errores');
 const { auditar } = require('../utils/auditoria');
+const { completarModuloUsuario } = require('./progress.controller');
 
 function shuffle(arr) {
   const a = [...arr];
@@ -14,9 +15,20 @@ function shuffle(arr) {
 exports.obtenerPorModulo = async (req, res) => {
   const examen = await prisma.examen.findFirst({
     where: { moduloId: req.params.moduloId, activo: true },
-    include: { preguntas: { where: { activo: true }, include: { opciones: true } } },
+    include: { preguntas: { where: { activo: true }, include: { opciones: true }, orderBy: { orden: 'asc' } } },
   });
   if (!examen) return Errores.noEncontrado(res, 'Examen');
+
+  if (req.usuario.rol === 'admin') {
+    return res.json({
+      id: examen.id,
+      titulo: examen.titulo,
+      descripcion: examen.descripcion,
+      intentosPermitidos: examen.intentosPermitidos,
+      calificacionMinima: examen.calificacionMinima,
+      preguntas: examen.preguntas,
+    });
+  }
 
   const intentosUsados = await prisma.intentoExamen.count({
     where: { usuarioId: req.usuario.id, examenId: examen.id, finalizadoEn: { not: null } },
@@ -98,7 +110,30 @@ exports.enviar = async (req, res) => {
     detalle: { examenId: examen.id, calificacion },
   });
 
-  return res.json({ calificacion, aprobado, correctas, total, calificacionMinima: examen.calificacionMinima, detalle });
+  let moduloCompletado = false;
+  if (aprobado) {
+    try {
+      await completarModuloUsuario(req.usuario.id, examen.moduloId, {
+        validarExamen: false,
+        forzarMarcarItems: true,
+        rol: req.usuario.rol,
+      });
+      moduloCompletado = true;
+    } catch (err) {
+      console.error('No se pudo completar el módulo tras aprobar examen:', err);
+    }
+  }
+
+  return res.json({
+    calificacion,
+    aprobado,
+    correctas,
+    total,
+    calificacionMinima: examen.calificacionMinima,
+    detalle,
+    moduloCompletado,
+    moduloId: examen.moduloId,
+  });
 };
 
 exports.misIntentos = async (req, res) => {
@@ -117,8 +152,16 @@ exports.crearExamen = async (req, res) => {
 };
 
 exports.actualizarExamen = async (req, res) => {
+  const allowed = ['titulo', 'descripcion', 'intentosPermitidos', 'calificacionMinima', 'activo'];
+  const data = {};
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) data[key] = req.body[key];
+  }
+  if (!Object.keys(data).length) {
+    return Errores.validacion(res, [{ campo: 'body', mensaje: 'Sin campos para actualizar.' }]);
+  }
   try {
-    const e = await prisma.examen.update({ where: { id: req.params.id }, data: req.body });
+    const e = await prisma.examen.update({ where: { id: req.params.id }, data });
     return res.json(e);
   } catch { return Errores.noEncontrado(res, 'Examen'); }
 };

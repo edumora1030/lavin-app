@@ -50,7 +50,13 @@ const useDist = fs.existsSync(path.join(distDir, 'index.html'));
 app.use('/assets', express.static(path.join(publicDir, 'assets')));
 app.use('/uploads', express.static(process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads')));
 if (useDist) {
-  app.use(express.static(distDir));
+  app.use(express.static(distDir, {
+    setHeaders(res, filePath) {
+      if (/\.(html|js|css)$/.test(filePath)) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+    },
+  }));
 } else {
   app.use(express.static(publicDir));
 }

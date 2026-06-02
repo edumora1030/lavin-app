@@ -19,8 +19,14 @@ exports.crear = async (req, res) => {
 
 exports.actualizar = async (req, res) => {
   const { nombre, activo } = req.body;
+  const data = {};
+  if (nombre !== undefined) data.nombre = nombre;
+  if (activo !== undefined) data.activo = activo;
+  if (!Object.keys(data).length) {
+    return Errores.validacion(res, [{ campo: 'body', mensaje: 'Sin campos para actualizar.' }]);
+  }
   try {
-    const area = await prisma.area.update({ where: { id: req.params.id }, data: { nombre, activo } });
+    const area = await prisma.area.update({ where: { id: req.params.id }, data });
     return res.json(area);
   } catch {
     return Errores.noEncontrado(res, 'Área');

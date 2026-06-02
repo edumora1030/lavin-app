@@ -1,15 +1,25 @@
 <template>
   <div class="course-shell" :class="{ 'course-shell--viewer': isSplit, 'course-shell--embedded': embedded }">
-    <!-- Vista principal: lista + sidebar -->
+    <!-- Vista principal: progreso + lista de módulos -->
     <div v-if="embedded && !isSplit" class="course-dashboard">
-      <div class="course-dashboard__grid">
-        <div class="course-dashboard__main">
-          <div class="course-dashboard__tab">
-            <List :size="18" />
-            Módulos en orden recomendado
-          </div>
+      <div class="course-progress">
+        <div class="course-progress__head">
+          <span>Tu progreso</span>
+          <strong>{{ pct }}% completado</strong>
+        </div>
+        <div class="course-progress__bar">
+          <div class="course-progress__fill" :style="{ width: pct + '%' }" />
+        </div>
+        <p class="course-progress__note">{{ progressNote }}</p>
+      </div>
 
-          <ul class="module-list">
+      <div class="course-dashboard__main">
+        <div class="course-dashboard__tab">
+          <List :size="18" />
+          Módulos en orden recomendado
+        </div>
+
+        <ul class="module-list">
             <li
               v-for="(modulo, idx) in modulos"
               :key="modulo.id"
@@ -50,31 +60,7 @@
                 <span>{{ actionLabel(modulo, idx) }}</span>
               </button>
             </li>
-          </ul>
-        </div>
-
-        <aside class="course-dashboard__aside">
-          <div class="course-aside-progress">
-            <div class="course-aside-progress__head">
-              <span>Tu progreso</span>
-              <strong>{{ pct }}% completado</strong>
-            </div>
-            <div class="course-aside-progress__bar">
-              <div class="course-aside-progress__fill" :style="{ width: pct + '%' }" />
-            </div>
-            <p class="course-aside-progress__note">{{ progressNote }}</p>
-          </div>
-
-          <div class="course-aside-tip course-aside-tip--success">
-            <CircleCheck :size="18" />
-            <p><strong>Sigue el orden recomendado.</strong> Esto te ayudará a comprender mejor los temas y avanzar de forma estructurada.</p>
-          </div>
-
-          <div class="course-aside-tip course-aside-tip--info">
-            <Lightbulb :size="18" />
-            <p><strong>Consejo:</strong> Dedica un tiempo sin interrupciones a cada módulo para aprovechar mejor el contenido.</p>
-          </div>
-        </aside>
+        </ul>
       </div>
     </div>
 
@@ -197,7 +183,7 @@
               Realizar examen
             </button>
             <button
-              v-if="!isModuloComplete(activeModulo.id)"
+              v-if="!isModuloComplete(activeModulo.id) && !moduloRequiereExamen(activeModulo)"
               type="button"
               class="btn btn-primary"
               :disabled="!canFinishModulo(activeModulo) || finalizandoModulo"
@@ -217,15 +203,14 @@ import { ref, computed, watch, onMounted } from 'vue';
 import {
   Check,
   ChevronRight,
-  CircleCheck,
   Clock,
-  Lightbulb,
   List,
   Lock,
   Play,
   PlayCircle,
 } from '@lucide/vue';
 import { api } from '../api';
+import { useAppAlert } from '../composables/useAppAlert';
 import { getIconComponent } from '../constants/icons';
 import { getModuloMeta } from '../constants/modulos';
 import VideoPlayer from './VideoPlayer.vue';
@@ -239,6 +224,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['refresh', 'examen', 'duda', 'module-change']);
+
+const { showAlert } = useAppAlert();
 
 const isSplit = ref(false);
 const activeModuloId = ref(null);
@@ -318,8 +305,13 @@ const videoVisto = computed(() => {
   return isViewed(activeModulo.value.id, itemId);
 });
 
+function moduloRequiereExamen(modulo) {
+  return !!(modulo?.requiereExamen && modulo?.examenes?.length);
+}
+
 function canFinishModulo(modulo) {
   if (modulo.slug === 'evaluacion-programa') return false;
+  if (moduloRequiereExamen(modulo)) return false;
   const { src, itemId } = resolveModuloVideo(modulo);
   if (!src) return true;
   if (!itemId) return true;
@@ -366,7 +358,7 @@ async function markVideoViewed() {
 
 async function onVideoEnded() {
   const m = activeModulo.value;
-  if (!m || m.slug === 'evaluacion-programa' || isModuloComplete(m.id)) return;
+  if (!m || m.slug === 'evaluacion-programa' || isModuloComplete(m.id) || moduloRequiereExamen(m)) return;
   await finishModulo(m);
 }
 
@@ -378,7 +370,11 @@ async function finishModulo(modulo) {
     await api.post('/api/progreso/modulo', { moduloId: modulo.id });
     emit('refresh');
   } catch (e) {
-    alert(e.message || 'No se pudo finalizar el módulo. Intenta de nuevo.');
+    showAlert({
+      title: 'No se pudo finalizar',
+      message: e.message || 'No se pudo finalizar el módulo. Intenta de nuevo.',
+      variant: 'error',
+    });
   } finally {
     finalizandoModulo.value = false;
   }
@@ -462,15 +458,51 @@ onMounted(async () => {
   overflow: hidden;
 }
 
-.course-dashboard__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  min-height: 520px;
+.course-dashboard__main {
+  min-width: 0;
 }
 
-.course-dashboard__main {
-  border-right: 1px solid rgba(30, 58, 95, 0.08);
-  min-width: 0;
+.course-progress {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(30, 58, 95, 0.08);
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.03) 0%, transparent 100%);
+}
+
+.course-progress__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--slate-600);
+}
+
+.course-progress__head strong {
+  font-size: 0.8125rem;
+  color: var(--blue-600);
+  white-space: nowrap;
+}
+
+.course-progress__bar {
+  height: 8px;
+  background: var(--blue-100);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.course-progress__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue-600), var(--blue-500));
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+
+.course-progress__note {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--slate-500);
 }
 
 .course-dashboard__tab {
@@ -483,14 +515,6 @@ onMounted(async () => {
   color: var(--blue-800);
   border-bottom: 2px solid var(--blue-600);
   background: linear-gradient(180deg, rgba(37, 99, 235, 0.04) 0%, transparent 100%);
-}
-
-.course-dashboard__aside {
-  padding: 1.25rem;
-  background: #fafbfd;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
 }
 
 /* Module list rows */
@@ -617,87 +641,6 @@ onMounted(async () => {
 .module-row__action.is-locked {
   color: var(--slate-400);
   cursor: not-allowed;
-}
-
-/* Sidebar */
-.course-aside-progress {
-  background: var(--white);
-  border: 1px solid rgba(30, 58, 95, 0.08);
-  border-radius: 12px;
-  padding: 1rem;
-}
-
-.course-aside-progress__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  font-size: 0.875rem;
-  color: var(--slate-600);
-}
-
-.course-aside-progress__head strong {
-  font-size: 0.8125rem;
-  color: var(--blue-600);
-  white-space: nowrap;
-}
-
-.course-aside-progress__bar {
-  height: 8px;
-  background: var(--blue-100);
-  border-radius: 999px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
-}
-
-.course-aside-progress__fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--blue-600), var(--blue-500));
-  border-radius: 999px;
-  transition: width 0.35s ease;
-}
-
-.course-aside-progress__note {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--slate-500);
-}
-
-.course-aside-tip {
-  display: flex;
-  gap: 0.625rem;
-  padding: 0.875rem;
-  border-radius: 12px;
-  font-size: 0.8125rem;
-  line-height: 1.5;
-}
-
-.course-aside-tip p {
-  margin: 0;
-  color: var(--slate-600);
-}
-
-.course-aside-tip strong {
-  color: inherit;
-}
-
-.course-aside-tip--success {
-  background: #ecfdf5;
-  color: #15803d;
-}
-
-.course-aside-tip--success p {
-  color: #166534;
-}
-
-.course-aside-tip--info {
-  background: var(--blue-50);
-  color: var(--blue-700);
-}
-
-.course-aside-tip--info p {
-  color: var(--blue-800);
 }
 
 /* Video viewer */
@@ -953,15 +896,6 @@ onMounted(async () => {
 }
 
 @media (max-width: 960px) {
-  .course-dashboard__grid {
-    grid-template-columns: 1fr;
-  }
-
-  .course-dashboard__main {
-    border-right: none;
-    border-bottom: 1px solid rgba(30, 58, 95, 0.08);
-  }
-
   .module-row {
     grid-template-columns: 2rem 2.25rem minmax(0, 1fr);
     grid-template-rows: auto auto;

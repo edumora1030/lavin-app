@@ -1,7 +1,62 @@
 require('dotenv').config();
 const bcrypt = require('bcrypt');
 const prisma = require('../src/config/db');
-const { MODULOS_EMPRESA, ENCUESTA_PREGUNTAS, AREAS_EJEMPLO, itemsParaModuloEmpresa } = require('./programs-data');
+const {
+  MODULOS_EMPRESA,
+  EXAMENES_EMPRESA,
+  ENCUESTA_PREGUNTAS,
+  AREAS_EJEMPLO,
+  itemsParaModuloEmpresa,
+} = require('./programs-data');
+
+async function seedExamenModulo(moduloId, examData) {
+  const existente = await prisma.examen.findFirst({ where: { moduloId } });
+  let examenId;
+
+  if (existente) {
+    examenId = existente.id;
+    await prisma.examen.update({
+      where: { id: examenId },
+      data: {
+        titulo: examData.titulo,
+        descripcion: examData.descripcion || '',
+        intentosPermitidos: examData.intentosPermitidos ?? 3,
+        calificacionMinima: examData.calificacionMinima ?? 70,
+        activo: true,
+      },
+    });
+    await prisma.pregunta.deleteMany({ where: { examenId } });
+  } else {
+    const creado = await prisma.examen.create({
+      data: {
+        moduloId,
+        titulo: examData.titulo,
+        descripcion: examData.descripcion || '',
+        intentosPermitidos: examData.intentosPermitidos ?? 3,
+        calificacionMinima: examData.calificacionMinima ?? 70,
+      },
+    });
+    examenId = creado.id;
+  }
+
+  for (let i = 0; i < examData.preguntas.length; i++) {
+    const p = examData.preguntas[i];
+    await prisma.pregunta.create({
+      data: {
+        examenId,
+        texto: p.texto,
+        orden: i + 1,
+        opciones: {
+          create: p.opciones.map((o, j) => ({
+            texto: o.texto,
+            esCorrecta: o.esCorrecta,
+            orden: j + 1,
+          })),
+        },
+      },
+    });
+  }
+}
 
 async function main() {
   console.log('🌱 Iniciando seed...');
@@ -62,6 +117,7 @@ async function main() {
   const slugsOficiales = MODULOS_EMPRESA.map((m) => m.slug);
 
   for (const m of MODULOS_EMPRESA) {
+    const examData = EXAMENES_EMPRESA[m.slug];
     const existente = await prisma.modulo.findUnique({ where: { slug: m.slug } });
     let moduloId;
 
@@ -69,7 +125,12 @@ async function main() {
       moduloId = existente.id;
       await prisma.modulo.update({
         where: { id: moduloId },
-        data: { descripcion: m.descripcion, nombre: m.nombre, orden: m.orden },
+        data: {
+          descripcion: m.descripcion,
+          nombre: m.nombre,
+          orden: m.orden,
+          requiereExamen: !!examData,
+        },
       });
       await prisma.itemModulo.deleteMany({ where: { moduloId } });
       console.log(`• Módulo actualizado: ${m.slug}`);
@@ -82,7 +143,7 @@ async function main() {
           programa: 'ambos',
           alcance: 'empresa',
           orden: m.orden,
-          requiereExamen: false,
+          requiereExamen: !!examData,
         },
       });
       moduloId = creado.id;
@@ -94,6 +155,11 @@ async function main() {
       await prisma.itemModulo.create({ data: { ...it, moduloId } });
     }
     console.log(`  → ${items.length} ítems`);
+
+    if (examData) {
+      await seedExamenModulo(moduloId, examData);
+      console.log(`  → examen con ${examData.preguntas.length} preguntas`);
+    }
   }
 
   const extras = await prisma.modulo.findMany({
@@ -117,6 +183,27 @@ async function main() {
     console.log(`✓ ${ENCUESTA_PREGUNTAS.length} preguntas de encuesta creadas.`);
   } else {
     console.log('• Preguntas de encuesta ya existen.');
+  }
+
+  // --- Vincular videos existentes al primer ítem de su módulo ---
+  const videosConModulo = await prisma.video.findMany({
+    where: { activo: true, moduloId: { not: null } },
+  });
+  let videosVinculados = 0;
+  for (const video of videosConModulo) {
+    const item = await prisma.itemModulo.findFirst({
+      where: { moduloId: video.moduloId, activo: true },
+      orderBy: { orden: 'asc' },
+    });
+    if (!item || item.videoUrl) continue;
+    await prisma.itemModulo.update({
+      where: { id: item.id },
+      data: { videoUrl: `/api/videos/${video.id}/stream` },
+    });
+    videosVinculados++;
+  }
+  if (videosVinculados) {
+    console.log(`✓ ${videosVinculados} video(s) vinculados a ítems de módulo.`);
   }
 
   console.log('✅ Seed completo.');

@@ -2,6 +2,8 @@ const bcrypt = require('bcrypt');
 const prisma = require('../config/db');
 const { Errores } = require('../utils/errores');
 const { auditar } = require('../utils/auditoria');
+const { obtenerEvidenciaInduccion, esInduccionCompleta } = require('../utils/evidenciaInduccion');
+const { generarPdfEvidencia } = require('../utils/generarPdfEvidencia');
 
 function passwordInicial(nomina) {
   const ult4 = String(nomina).slice(-4).padStart(4, '0');
@@ -96,4 +98,40 @@ exports.reporte = async (req, res) => {
   });
   if (!u) return Errores.noEncontrado(res, 'Usuario');
   return res.json(sanitizar(u));
+};
+
+exports.evidencia = async (req, res) => {
+  const data = await obtenerEvidenciaInduccion(req.params.id);
+  if (!data) return Errores.noEncontrado(res, 'Usuario');
+  return res.json(data);
+};
+
+exports.evidenciaPdf = async (req, res) => {
+  try {
+    const data = await obtenerEvidenciaInduccion(req.params.id);
+    if (!data) return Errores.noEncontrado(res, 'Usuario');
+    if (!esInduccionCompleta(data)) {
+      return res.status(422).json({
+        error: true,
+        codigo: 'INDUCCION_INCOMPLETA',
+        mensaje: 'La hoja de evidencia solo está disponible cuando el colaborador completó toda su inducción.',
+        status: 422,
+      });
+    }
+
+    const pdf = await generarPdfEvidencia(data);
+    const filename = `evidencia-induccion-${data.empleado.nomina}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(pdf);
+  } catch (err) {
+    console.error('Error generando PDF de evidencia:', err);
+    return res.status(500).json({
+      error: true,
+      codigo: 'PDF_ERROR',
+      mensaje: 'No se pudo generar el PDF de evidencia.',
+      status: 500,
+    });
+  }
 };

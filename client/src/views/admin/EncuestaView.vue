@@ -22,9 +22,25 @@
           <tr v-for="p in preguntas" :key="p.id">
             <td>{{ p.orden }}</td>
             <td>{{ p.texto }}</td>
-            <td style="display:flex; gap:8px;">
-              <button class="btn secondary" @click="editar(p)">Editar</button>
-              <button class="btn ghost" @click="eliminar(p.id)">Eliminar</button>
+            <td style="display:flex; gap:6px;">
+              <button
+                class="icon-btn"
+                type="button"
+                title="Editar pregunta"
+                aria-label="Editar pregunta"
+                @click="editar(p)"
+              >
+                <Pencil :size="15" stroke-width="2" />
+              </button>
+              <button
+                class="icon-btn icon-btn--danger"
+                type="button"
+                title="Eliminar pregunta"
+                aria-label="Eliminar pregunta"
+                @click="eliminar(p.id)"
+              >
+                <Trash2 :size="15" stroke-width="2" />
+              </button>
             </td>
           </tr>
           <tr v-if="!preguntas.length">
@@ -56,7 +72,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { Pencil, Trash2 } from '@lucide/vue';
+import { useAppConfirm } from '../../composables/useAppConfirm';
 import { api } from '../../api';
+const { showConfirm } = useAppConfirm();
 
 const preguntas = ref([]);
 const respuestas = ref([]);
@@ -90,7 +109,8 @@ function cancelar() {
 }
 
 async function eliminar(id) {
-  if (!confirm('¿Desactivar esta pregunta?')) return;
+  const ok = await showConfirm({ title: '¿Eliminar pregunta?', message: 'La pregunta se desactivará del cuestionario.', variant: 'danger', confirmLabel: 'Eliminar' });
+  if (!ok) return;
   await api.del(`/api/encuesta/preguntas/${id}`);
   await cargar();
 }

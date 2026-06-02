@@ -41,7 +41,16 @@ exports.listar = async (req, res) => {
     orderBy: { orden: 'asc' },
     include: {
       items: { where: { activo: true }, orderBy: { orden: 'asc' } },
-      examenes: { select: { id: true } },
+      examenes: {
+        where: { activo: true },
+        select: {
+          id: true,
+          titulo: true,
+          intentosPermitidos: true,
+          calificacionMinima: true,
+          _count: { select: { preguntas: { where: { activo: true } } } },
+        },
+      },
       videos: {
         where: { activo: true },
         orderBy: { subidoEn: 'desc' },
@@ -68,8 +77,16 @@ exports.crear = async (req, res) => {
 };
 
 exports.actualizar = async (req, res) => {
+  const allowed = ['nombre', 'descripcion', 'programa', 'alcance', 'orden', 'requiereExamen', 'activo'];
+  const data = {};
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) data[key] = req.body[key];
+  }
+  if (!Object.keys(data).length) {
+    return Errores.validacion(res, [{ campo: 'body', mensaje: 'Sin campos para actualizar.' }]);
+  }
   try {
-    const m = await prisma.modulo.update({ where: { id: req.params.id }, data: req.body });
+    const m = await prisma.modulo.update({ where: { id: req.params.id }, data });
     return res.json(m);
   } catch { return Errores.noEncontrado(res, 'Módulo'); }
 };
@@ -80,16 +97,24 @@ exports.agregarItem = async (req, res) => {
 };
 
 exports.actualizarItem = async (req, res) => {
+  const allowed = ['tipo', 'titulo', 'descripcion', 'archivoUrl', 'videoUrl', 'icono', 'orden', 'activo'];
+  const data = {};
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) data[key] = req.body[key];
+  }
   try {
-    const it = await prisma.itemModulo.update({ where: { id: req.params.itemId }, data: req.body });
+    const it = await prisma.itemModulo.update({ where: { id: req.params.itemId }, data });
     return res.json(it);
   } catch { return Errores.noEncontrado(res, 'Ítem'); }
 };
 
 exports.eliminarItem = async (req, res) => {
   try {
-    await prisma.itemModulo.delete({ where: { id: req.params.itemId } });
-    return res.json({ ok: true });
+    const it = await prisma.itemModulo.update({
+      where: { id: req.params.itemId },
+      data: { activo: false },
+    });
+    return res.json(it);
   } catch { return Errores.noEncontrado(res, 'Ítem'); }
 };
 

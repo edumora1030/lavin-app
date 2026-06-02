@@ -66,6 +66,11 @@ exports.solicitar = async (req, res) => {
   return res.status(201).json({ ok: true, notificacion });
 };
 
+exports.contarPendientes = async (req, res) => {
+  const total = await prisma.notificacionRH.count({ where: { estado: 'pendiente' } });
+  return res.json({ total });
+};
+
 exports.listar = async (req, res) => {
   const where = {};
   if (req.query.estado === 'pendiente' || req.query.estado === 'atendida') {

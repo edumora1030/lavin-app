@@ -76,12 +76,15 @@ Para que arranque con Windows, usa **pm2-windows-startup** o `nssm`.
 ## Desarrollo frontend (Vue)
 
 ```bash
-# Terminal 1 — API
 npm run dev
+# Levanta API (:3000) + Vue con hot-reload y abre http://localhost:5173
+```
 
-# Terminal 2 — Vue con hot-reload (proxy a :3000)
-npm run dev:client
-# Abre http://localhost:5173
+Solo un servicio, si lo necesitas por separado:
+
+```bash
+npm run dev:server   # API en :3000
+npm run dev:client   # Vue en :5173
 ```
 
 Build para producción (obligatorio antes de desplegar):

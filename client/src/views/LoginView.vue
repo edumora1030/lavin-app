@@ -27,11 +27,29 @@
           <form @submit.prevent="submitPassword">
             <div class="form-group">
               <label for="password">Contraseña</label>
-              <input id="password" v-model="password" type="password" required autocomplete="current-password">
+              <div class="password-field">
+                <input
+                  id="password"
+                  v-model="password"
+                  :type="showPassword ? 'text' : 'password'"
+                  required
+                  autocomplete="current-password"
+                >
+                <button
+                  type="button"
+                  class="password-field__toggle"
+                  :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                  :aria-pressed="showPassword"
+                  @click="showPassword = !showPassword"
+                >
+                  <EyeOff v-if="showPassword" :size="18" stroke-width="2" />
+                  <Eye v-else :size="18" stroke-width="2" />
+                </button>
+              </div>
             </div>
             <p v-if="error" class="form-error" style="display:block; margin-bottom:1rem;">{{ error }}</p>
             <button type="submit" class="btn btn-gate" :disabled="loading">Entrar</button>
-            <button type="button" class="btn-text" style="display:block; margin:1rem auto 0;" @click="step = 'nomina'; error = ''">
+            <button type="button" class="btn-text" style="display:block; margin:1rem auto 0;" @click="step = 'nomina'; error = ''; showPassword = false">
               ← Cambiar nómina
             </button>
           </form>
@@ -46,6 +64,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import LogoBlock from '../components/LogoBlock.vue';
+import { Eye, EyeOff } from '@lucide/vue';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -53,6 +72,7 @@ const router = useRouter();
 const step = ref('nomina');
 const nomina = ref('');
 const password = ref('');
+const showPassword = ref(false);
 const nominaInvalid = ref(false);
 const error = ref('');
 const loading = ref(false);

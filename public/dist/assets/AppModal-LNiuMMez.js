@@ -1,1 +1,0 @@
-import{u as o,f as a,b as t,y as l,T as r}from"./index-B1a2aSwP.js";const i={class:"modal"},m={__name:"AppModal",emits:["close"],setup(n){return(e,s)=>(o(),a("div",{class:"modal-overlay",onClick:s[0]||(s[0]=r(d=>e.$emit("close"),["self"]))},[t("div",i,[l(e.$slots,"default")])]))}};export{m as _};

@@ -7,6 +7,8 @@ const router = express.Router();
 router.use(authRequired);
 
 router.post('/', ctrl.crear);
+router.get('/pendientes/count', requireRol('admin'), ctrl.countPendientes);
+router.get('/mias', ctrl.listarMias);
 router.get('/', requireRol('admin'), ctrl.listar);
 router.put('/:id', requireRol('admin'), ctrl.responder);
 

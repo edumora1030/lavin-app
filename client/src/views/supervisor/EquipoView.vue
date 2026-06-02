@@ -24,7 +24,9 @@
 
     <div class="card">
       <div style="margin-bottom:12px">
-        <a class="btn secondary" href="/api/progreso/resumen/csv">Exportar CSV</a>
+        <button type="button" class="btn secondary" :disabled="exportando" @click="exportarCsv">
+          {{ exportando ? 'Exportando…' : 'Exportar CSV' }}
+        </button>
       </div>
       <table>
         <thead>
@@ -53,13 +55,27 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../../stores/auth';
-import { api } from '../../api';
+import { useAppAlert } from '../../composables/useAppAlert';
+import { api, downloadFile } from '../../api';
+const { showAlert } = useAppAlert();
 
 const auth = useAuthStore();
 const empleados = ref([]);
+const exportando = ref(false);
 
 const conProgreso = computed(() => empleados.value.filter((u) => u.modulosCompletados > 0).length);
 const sinProgreso = computed(() => empleados.value.filter((u) => u.modulosCompletados === 0).length);
+
+async function exportarCsv() {
+  exportando.value = true;
+  try {
+    await downloadFile('/api/progreso/resumen/csv', 'progreso-empleados.csv');
+  } catch (e) {
+    showAlert({ title: 'Error al exportar', message: e.message || 'No se pudo exportar el CSV.', variant: 'error' });
+  } finally {
+    exportando.value = false;
+  }
+}
 
 onMounted(async () => {
   empleados.value = await api.get('/api/progreso/resumen');

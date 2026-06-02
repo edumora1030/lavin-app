@@ -150,6 +150,248 @@ const MODULOS_EMPRESA = [
   },
 ];
 
+// Preguntas de examen por módulo (Inducción a la empresa)
+const EXAMENES_EMPRESA = {
+  'historia-mision-vision-valores': {
+    titulo: 'Examen — Historia, misión, visión y valores',
+    descripcion: 'Evalúa lo aprendido sobre la bienvenida a Industrias Lavín.',
+    preguntas: [
+      {
+        texto: '¿Cuántos años de experiencia tiene Grupo Lavín?',
+        opciones: [
+          { texto: '15 años', esCorrecta: false },
+          { texto: 'Más de 40 años', esCorrecta: true },
+          { texto: '25 años', esCorrecta: false },
+        ],
+      },
+      {
+        texto: '¿Cuál es uno de los valores de Industrias Lavín?',
+        opciones: [
+          { texto: 'Individualismo', esCorrecta: false },
+          { texto: 'Competencia interna', esCorrecta: false },
+          { texto: 'Honradez', esCorrecta: true },
+        ],
+      },
+      {
+        texto: '¿Cuál es una de las etapas del proceso operativo?',
+        opciones: [
+          { texto: 'Distribución', esCorrecta: true },
+          { texto: 'Publicidad política', esCorrecta: false },
+          { texto: 'Recursos electorales', esCorrecta: false },
+        ],
+      },
+    ],
+  },
+  'terminos-laborales': {
+    titulo: 'Examen — Términos laborales',
+    descripcion: 'Evalúa lo aprendido sobre condiciones y normas laborales.',
+    preguntas: [
+      {
+        texto: '¿Cuántas faltas injustificadas pueden ser motivo de terminación laboral en un periodo de 30 días?',
+        opciones: [
+          { texto: 'Más de tres faltas', esCorrecta: true },
+          { texto: 'Una falta', esCorrecta: false },
+          { texto: 'Cinco retardos', esCorrecta: false },
+        ],
+      },
+      {
+        texto: '¿Qué debe hacer un colaborador en caso de perder su credencial institucional?',
+        opciones: [
+          { texto: 'Comprar una nueva por su cuenta', esCorrecta: false },
+          { texto: 'Reportarla inmediatamente para reposición', esCorrecta: true },
+          { texto: 'Esperar al siguiente mes', esCorrecta: false },
+        ],
+      },
+      {
+        texto: '¿Cuándo pueden realizarse horas extras?',
+        opciones: [
+          { texto: 'Cuando el colaborador quiera', esCorrecta: false },
+          { texto: 'Solo con autorización del jefe inmediato', esCorrecta: true },
+          { texto: 'Únicamente en domingo', esCorrecta: false },
+        ],
+      },
+    ],
+  },
+  'seguridad-higiene': {
+    titulo: 'Examen — Seguridad e Higiene',
+    descripcion: 'Evalúa lo aprendido sobre seguridad industrial e higiene.',
+    preguntas: [
+      {
+        texto: '¿Quién tiene la responsabilidad exclusiva del control de puertas y accesos?',
+        opciones: [
+          { texto: 'Recursos Humanos', esCorrecta: false },
+          { texto: 'Vigilancia', esCorrecta: true },
+          { texto: 'Dirección General', esCorrecta: false },
+        ],
+      },
+      {
+        texto: '¿Qué debe hacerse durante una evacuación?',
+        opciones: [
+          { texto: 'Regresar por pertenencias', esCorrecta: false },
+          { texto: 'Correr para salir rápido', esCorrecta: false },
+          { texto: 'Seguir instrucciones de la brigada', esCorrecta: true },
+        ],
+      },
+      {
+        texto: '¿Qué es obligatorio portar dentro de las instalaciones?',
+        opciones: [
+          { texto: 'Audífonos', esCorrecta: false },
+          { texto: 'Gafete institucional', esCorrecta: true },
+          { texto: 'Mochila personal', esCorrecta: false },
+        ],
+      },
+    ],
+  },
+  'programas-empresa': {
+    titulo: 'Examen — Programas de Empresa',
+    descripcion: 'Evalúa lo aprendido sobre los programas internos de la empresa.',
+    preguntas: [
+      {
+        texto: '¿Qué color de pluma debe utilizarse en los registros oficiales?',
+        opciones: [
+          { texto: 'Roja', esCorrecta: false },
+          { texto: 'Verde', esCorrecta: false },
+          { texto: 'Azul o negra', esCorrecta: true },
+        ],
+      },
+      {
+        texto: '¿Qué busca la Campaña SOL?',
+        opciones: [
+          { texto: 'Crear un ambiente limpio y ordenado', esCorrecta: true },
+          { texto: 'Reducir horarios laborales', esCorrecta: false },
+          { texto: 'Cambiar uniformes', esCorrecta: false },
+        ],
+      },
+      {
+        texto: '¿Qué debe incluir todo registro documental?',
+        opciones: [
+          { texto: 'Firma, iniciales y fecha', esCorrecta: true },
+          { texto: 'Solo nombre completo', esCorrecta: false },
+          { texto: 'Únicamente el área', esCorrecta: false },
+        ],
+      },
+    ],
+  },
+  'politicas-objetivos-calidad': {
+    titulo: 'Examen — Políticas y objetivos de calidad',
+    descripcion: 'Evalúa lo aprendido sobre calidad y objetivos organizacionales.',
+    preguntas: [
+      {
+        texto: '¿Cuál es uno de los objetivos de calidad de la empresa?',
+        opciones: [
+          { texto: 'Reducir capacitación', esCorrecta: false },
+          { texto: 'Mejorar el nivel de servicio al cliente', esCorrecta: true },
+          { texto: 'Eliminar auditorías', esCorrecta: false },
+        ],
+      },
+      {
+        texto: 'Todas nuestras acciones están alineadas con nuestra misión, visión y valores organizacionales.',
+        opciones: [
+          { texto: 'Verdadero', esCorrecta: true },
+          { texto: 'Falso', esCorrecta: false },
+        ],
+      },
+      {
+        texto: '¿La calidad es responsabilidad de quién?',
+        opciones: [
+          { texto: 'Solo del área de calidad', esCorrecta: false },
+          { texto: 'Únicamente de supervisores', esCorrecta: false },
+          { texto: 'De todos los colaboradores', esCorrecta: true },
+        ],
+      },
+    ],
+  },
+  'lineamientos-internos': {
+    titulo: 'Examen — Lineamientos internos',
+    descripcion: 'Evalúa lo aprendido sobre reglas de convivencia y conducta.',
+    preguntas: [
+      {
+        texto: '¿Qué está prohibido dentro de las instalaciones?',
+        opciones: [
+          { texto: 'Consumir alcohol o drogas', esCorrecta: true },
+          { texto: 'Usar uniforme', esCorrecta: false },
+          { texto: 'Tomar agua', esCorrecta: false },
+        ],
+      },
+      {
+        texto: '¿Cómo deben mantenerse las relaciones con proveedores y clientes?',
+        opciones: [
+          { texto: 'Con favoritismos', esCorrecta: false },
+          { texto: 'Bajo principios éticos y transparentes', esCorrecta: true },
+          { texto: 'Solo mediante contratos verbales', esCorrecta: false },
+        ],
+      },
+      {
+        texto: '¿Qué debe proteger cada colaborador?',
+        opciones: [
+          { texto: 'Información y activos de la empresa', esCorrecta: true },
+          { texto: 'Únicamente sus objetos personales', esCorrecta: false },
+          { texto: 'Solamente los correos electrónicos', esCorrecta: false },
+        ],
+      },
+    ],
+  },
+  'beneficios-prestaciones': {
+    titulo: 'Examen — Beneficios y prestaciones',
+    descripcion: 'Evalúa lo aprendido sobre prestaciones y beneficios laborales.',
+    preguntas: [
+      {
+        texto: '¿Cuántos días de vacaciones corresponden durante el primer año laboral?',
+        opciones: [
+          { texto: '6 días', esCorrecta: false },
+          { texto: '12 días', esCorrecta: true },
+          { texto: '20 días', esCorrecta: false },
+        ],
+      },
+      {
+        texto: 'La prima vacacional aumenta dependiendo de la antigüedad laboral del colaborador',
+        opciones: [
+          { texto: 'Falso', esCorrecta: false },
+          { texto: 'Verdadero', esCorrecta: true },
+        ],
+      },
+      {
+        texto: '¿Qué requisito debe cumplirse para recibir el premio de puntualidad y asistencia?',
+        opciones: [
+          { texto: 'No tener faltas ni retardos', esCorrecta: true },
+          { texto: 'Trabajar domingos', esCorrecta: false },
+          { texto: 'Tener horas extras', esCorrecta: false },
+        ],
+      },
+    ],
+  },
+  'servicio-medico': {
+    titulo: 'Examen — Servicio médico',
+    descripcion: 'Evalúa lo aprendido sobre el servicio médico y programas de salud.',
+    preguntas: [
+      {
+        texto: '¿Qué debe hacer un colaborador si presenta síntomas de enfermedad fuera de la empresa?',
+        opciones: [
+          { texto: 'Ignorarlos', esCorrecta: false },
+          { texto: 'Acudir al IMSS correspondiente', esCorrecta: true },
+          { texto: 'Presentarse directamente a trabajar', esCorrecta: false },
+        ],
+      },
+      {
+        texto: '¿Cuántos días laborables con goce de sueldo corresponden por paternidad?',
+        opciones: [
+          { texto: '2 días', esCorrecta: false },
+          { texto: '5 días', esCorrecta: true },
+          { texto: '10 días', esCorrecta: false },
+        ],
+      },
+      {
+        texto: '¿Qué busca promover la NOM-035?',
+        opciones: [
+          { texto: 'Más horas extras', esCorrecta: false },
+          { texto: 'Un entorno organizacional favorable', esCorrecta: true },
+          { texto: 'Cambios de uniforme', esCorrecta: false },
+        ],
+      },
+    ],
+  },
+};
+
 const ENCUESTA_PREGUNTAS = [
   { texto: '¿La información proporcionada fue clara y comprensible?', orden: 1 },
   { texto: '¿El contenido del programa fue relevante para tu trabajo?', orden: 2 },
@@ -188,4 +430,10 @@ function itemsParaModuloEmpresa(slug) {
   }];
 }
 
-module.exports = { MODULOS_EMPRESA, ENCUESTA_PREGUNTAS, AREAS_EJEMPLO, itemsParaModuloEmpresa };
+module.exports = {
+  MODULOS_EMPRESA,
+  EXAMENES_EMPRESA,
+  ENCUESTA_PREGUNTAS,
+  AREAS_EJEMPLO,
+  itemsParaModuloEmpresa,
+};

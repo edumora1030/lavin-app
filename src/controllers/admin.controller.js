@@ -1,5 +1,67 @@
 const prisma = require('../config/db');
 
+const PROGRAMAS = ['operativo', 'administrativo'];
+
+function bucketPrograma(programa) {
+  return programa === 'administrativo' ? 'administrativo' : 'operativo';
+}
+
+function whereEmpleadosPrograma(programa) {
+  if (programa === 'administrativo') {
+    return { rol: 'empleado', activo: true, programa: 'administrativo' };
+  }
+  return {
+    rol: 'empleado',
+    activo: true,
+    OR: [{ programa: 'operativo' }, { programa: null }],
+  };
+}
+
+function metricasEmpleados(empleados, totalModulosEmpresa) {
+  let completados = 0;
+  let enCurso = 0;
+  let sinIniciar = 0;
+
+  empleados.forEach((e) => {
+    const n = e.progresos.length;
+    if (n >= totalModulosEmpresa && totalModulosEmpresa > 0) completados++;
+    else if (n > 0) enCurso++;
+    else sinIniciar++;
+  });
+
+  const total = empleados.length;
+  return {
+    total,
+    completados,
+    enCurso,
+    sinIniciar,
+    pctCompletado: total ? Math.round((completados / total) * 100) : 0,
+  };
+}
+
+async function progresoPorModuloPrograma(modulos, programa, totalEmpleados) {
+  const userWhere = whereEmpleadosPrograma(programa);
+  return Promise.all(
+    modulos.map(async (m) => {
+      const count = await prisma.progreso.count({
+        where: {
+          moduloId: m.id,
+          tipo: 'modulo_completado',
+          completado: true,
+          usuario: userWhere,
+        },
+      });
+      return {
+        id: m.id,
+        nombre: m.nombre,
+        orden: m.orden,
+        completados: count,
+        pct: totalEmpleados ? Math.round((count / totalEmpleados) * 100) : 0,
+      };
+    })
+  );
+}
+
 exports.dashboard = async (req, res) => {
   const [
     totalEmpleados,
@@ -27,20 +89,13 @@ exports.dashboard = async (req, res) => {
     prisma.notificacionRH.count({ where: { estado: 'pendiente' } }),
   ]);
 
-  let completados = 0;
-  let enCurso = 0;
-  let sinIniciar = 0;
+  const global = metricasEmpleados(empleados, totalModulosEmpresa);
 
-  empleados.forEach((e) => {
-    const n = e.progresos.length;
-    if (n >= totalModulosEmpresa && totalModulosEmpresa > 0) completados++;
-    else if (n > 0) enCurso++;
-    else sinIniciar++;
-  });
-
-  const pctCompletado = totalEmpleados
-    ? Math.round((completados / totalEmpleados) * 100)
-    : 0;
+  const porPrograma = {};
+  for (const programa of PROGRAMAS) {
+    const lista = empleados.filter((e) => bucketPrograma(e.programa) === programa);
+    porPrograma[programa] = metricasEmpleados(lista, totalModulosEmpresa);
+  }
 
   const modulos = await prisma.modulo.findMany({
     where: { activo: true, alcance: { in: ['empresa', 'ambos'] } },
@@ -48,7 +103,16 @@ exports.dashboard = async (req, res) => {
     select: { id: true, nombre: true, orden: true },
   });
 
-  const progresoPorModulo = await Promise.all(
+  const progresoPorModuloPorPrograma = {};
+  for (const programa of PROGRAMAS) {
+    progresoPorModuloPorPrograma[programa] = await progresoPorModuloPrograma(
+      modulos,
+      programa,
+      porPrograma[programa].total
+    );
+  }
+
+  const progresoPorModuloGlobal = await Promise.all(
     modulos.map(async (m) => {
       const count = await prisma.progreso.count({
         where: { moduloId: m.id, tipo: 'modulo_completado', completado: true },
@@ -76,52 +140,40 @@ exports.dashboard = async (req, res) => {
   return res.json({
     totalEmpleados,
     totalModulosEmpresa,
-    completados,
-    enCurso,
-    sinIniciar,
-    pctCompletado,
+    completados: global.completados,
+    enCurso: global.enCurso,
+    sinIniciar: global.sinIniciar,
+    pctCompletado: global.pctCompletado,
+    porPrograma,
     dudasPendientes,
     encuestasCompletadas: encuestasRespondidas.length,
     notificacionesPendientes,
     totalAreas,
     totalSupervisores,
-    progresoPorModulo,
+    progresoPorModulo: progresoPorModuloGlobal,
+    progresoPorModuloPorPrograma,
     porArea: Object.entries(porArea).map(([nombre, stats]) => ({ nombre, ...stats })),
   });
 };
 
+const {
+  listarEmpleadosResumen,
+  mapEmpleadosResumen,
+  toCsv,
+  CSV_COLUMNAS,
+} = require('../utils/progresoResumen');
+
 function csv(rows, columnas) {
-  const headers = columnas.join(',');
-  const lines = rows.map(r => columnas.map(c => {
-    const v = r[c] ?? '';
-    const s = String(v).replace(/"/g, '""');
-    return /[",\n]/.test(s) ? `"${s}"` : s;
-  }).join(','));
-  return [headers, ...lines].join('\n');
+  return toCsv(rows, columnas).replace(/^\uFEFF/, '');
 }
 
 exports.reporteEmpleados = async (req, res) => {
-  const empleados = await prisma.usuario.findMany({
-    where: { rol: 'empleado' },
-    include: {
-      progresos: { where: { tipo: 'modulo_completado', completado: true } },
-      areaRel: { select: { nombre: true } },
-    },
-  });
-  const totalModulos = await prisma.modulo.count({ where: { activo: true, alcance: { in: ['empresa', 'ambos'] } } });
-  const rows = empleados.map(e => ({
-    nomina: e.nomina,
-    nombre: e.nombre,
-    programa: e.programa,
-    area: e.areaRel?.nombre || e.area || '',
-    activo: e.activo ? 'Sí' : 'No',
-    modulosCompletados: e.progresos.length,
-    totalModulos,
-    creadoEn: e.creadoEn.toISOString(),
-  }));
+  const { empleados, modulosEmpresa, modulosPuesto } = await listarEmpleadosResumen(req);
+  const rows = mapEmpleadosResumen(empleados, modulosEmpresa, modulosPuesto);
+
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="empleados.csv"');
-  res.send(csv(rows, ['nomina', 'nombre', 'programa', 'area', 'activo', 'modulosCompletados', 'totalModulos', 'creadoEn']));
+  res.setHeader('Content-Disposition', 'attachment; filename="progreso-empleados.csv"');
+  res.send(toCsv(rows, CSV_COLUMNAS));
 };
 
 exports.reporteExamenes = async (req, res) => {

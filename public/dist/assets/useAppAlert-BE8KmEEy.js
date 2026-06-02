@@ -1,0 +1,1 @@
+import{A as r}from"./index-BiCIBoWR.js";const e=r({visible:!1,title:"",message:"",variant:"info",score:null});function u(){function s({title:i="Aviso",message:l="",variant:n="info",score:o=null}){e.title=i,e.message=l,e.variant=n,e.score=o,e.visible=!0}function t(){e.visible=!1,e.score=null}return{state:e,showAlert:s,closeAlert:t}}export{u};

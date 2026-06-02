@@ -72,10 +72,8 @@ router.beforeEach(async (to) => {
   if (auth.rol === 'empleado' && (to.path === '/' || to.name === 'empleado-gate')) {
     const u = auth.user;
     if (u?.induccionEmpresaHabilitada || u?.induccionPuestoHabilitada) {
-      if (u.programa === 'operativo') {
-        return { name: 'empleado-induccion', params: { alcance: 'empresa' } };
-      }
-      return { name: 'empleado-induccion', params: { alcance: 'empresa' } };
+      const alcance = u.induccionEmpresaHabilitada ? 'empresa' : 'puesto';
+      return { name: 'empleado-induccion', params: { alcance }, replace: true };
     }
   }
 

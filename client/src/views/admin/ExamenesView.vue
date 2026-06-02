@@ -43,7 +43,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useAppAlert } from '../../composables/useAppAlert';
+import { useAppConfirm } from '../../composables/useAppConfirm';
 import { api } from '../../api';
+const { showAlert } = useAppAlert();
+const { showConfirm } = useAppConfirm();
 import AppModal from '../../components/AppModal.vue';
 
 const modulos = ref([]);
@@ -105,7 +109,7 @@ async function addPreg() {
     texto: o.texto,
     esCorrecta: !!o.esCorrecta,
   }));
-  if (!opciones.some((o) => o.esCorrecta)) { alert('Marca una opción correcta.'); return; }
+  if (!opciones.some((o) => o.esCorrecta)) { showAlert({ title: 'Opción correcta requerida', message: 'Marca al menos una opción como correcta.', variant: 'info' }); return; }
   await api.post(`/api/examenes/${examenId.value}/preguntas`, { texto: pregForm.value.texto, opciones });
   pregForm.value.texto = '';
   pregForm.value.opciones.forEach((o) => { o.texto = ''; o.esCorrecta = false; });
@@ -113,7 +117,8 @@ async function addPreg() {
 }
 
 async function delPreg(pid) {
-  if (!confirm('¿Eliminar pregunta?')) return;
+  const ok = await showConfirm({ title: '¿Eliminar pregunta?', message: 'Esta acción no se puede deshacer.', variant: 'danger', confirmLabel: 'Eliminar' });
+  if (!ok) return;
   await api.del(`/api/examenes/${examenId.value}/preguntas/${pid}`);
   await editarLoad(moduloId.value);
 }

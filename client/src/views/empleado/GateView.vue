@@ -9,9 +9,12 @@
       <!-- Empleado sin acceso habilitado -->
       <div v-if="!tieneAcceso" class="gate-step-profile is-visible">
         <h2 class="profile-picker-title">Inducción no disponible</h2>
-        <p class="profile-picker-desc">
+        <p class="profile-picker-desc gate-step-profile__desc">
           Tu acceso al programa de inducción aún no ha sido habilitado. Contacta a Recursos Humanos para más información.
         </p>
+        <button type="button" class="btn btn-gate" @click="volverLogin">
+          Volver a inicio de sesión
+        </button>
       </div>
 
       <!-- Administrativo con ambas: muestra selector -->
@@ -61,6 +64,11 @@ const mostrarSelector = computed(() =>
 
 function ir(alcance) {
   router.push({ name: 'empleado-induccion', params: { alcance } });
+}
+
+function volverLogin() {
+  auth.logout();
+  router.push({ name: 'login' });
 }
 
 onMounted(async () => {

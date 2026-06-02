@@ -7,9 +7,21 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
+  BarController,
+  DoughnutController,
 } from 'chart.js';
 
-ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale, LinearScale, BarElement);
+ChartJS.register(
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  BarController,
+  DoughnutController,
+);
 
 export const COLORS = {
   navy: '#0f2744',

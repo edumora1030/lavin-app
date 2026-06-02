@@ -10,8 +10,9 @@
       preload="metadata"
       :src="resolvedSrc"
       @ended="$emit('ended')"
+      @error="onVideoError"
     />
-    <p v-else class="video-player__error">No se pudo cargar el video.</p>
+    <p v-else class="video-player__error">{{ errorMessage || 'No se pudo cargar el video.' }}</p>
     <button
       v-if="resolvedSrc && !loading"
       type="button"
@@ -28,7 +29,7 @@
 <script setup>
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import { Maximize2, Minimize2 } from '@lucide/vue';
-import { getToken } from '../api';
+import { videoStreamUrl } from '../api';
 
 const props = defineProps({
   src: { type: String, required: true },
@@ -41,39 +42,35 @@ const videoRef = ref(null);
 const isFullscreen = ref(false);
 const resolvedSrc = ref('');
 const loading = ref(false);
-let blobUrl = null;
+const errorMessage = ref('');
 
 function onFullscreenChange() {
   isFullscreen.value = !!document.fullscreenElement;
 }
 
-async function loadSrc(src) {
-  if (blobUrl) {
-    URL.revokeObjectURL(blobUrl);
-    blobUrl = null;
+function resolvePlaybackUrl(src) {
+  if (!src) return '';
+  if (src.startsWith('/api/videos/') && src.includes('/stream')) {
+    const match = src.match(/\/api\/videos\/([^/?]+)\/stream/);
+    if (match) return videoStreamUrl(match[1]);
   }
-  resolvedSrc.value = '';
+  return src;
+}
 
-  if (!src) return;
-
-  if (!src.startsWith('/api/')) {
-    resolvedSrc.value = src;
+function loadSrc(src) {
+  errorMessage.value = '';
+  if (!src) {
+    resolvedSrc.value = '';
     return;
   }
-
   loading.value = true;
-  try {
-    const res = await fetch(src, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    if (!res.ok) throw new Error('Error al cargar');
-    blobUrl = URL.createObjectURL(await res.blob());
-    resolvedSrc.value = blobUrl;
-  } catch {
-    resolvedSrc.value = '';
-  } finally {
-    loading.value = false;
-  }
+  resolvedSrc.value = resolvePlaybackUrl(src);
+  loading.value = false;
+}
+
+function onVideoError() {
+  errorMessage.value = 'No se pudo reproducir el video. Verifica que el archivo exista y vuelve a intentarlo.';
+  resolvedSrc.value = '';
 }
 
 async function toggleFullscreen() {
@@ -100,7 +97,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('fullscreenchange', onFullscreenChange);
-  if (blobUrl) URL.revokeObjectURL(blobUrl);
 });
 </script>
 
@@ -131,6 +127,8 @@ onBeforeUnmount(() => {
   color: #94a3b8;
   font-size: 0.9375rem;
   margin: 0;
+  padding: 1rem;
+  text-align: center;
 }
 
 .video-player__fullscreen {

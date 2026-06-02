@@ -12,6 +12,10 @@
 ## Comandos
 
 ```bash
-npm run dev      # http://localhost:5173 (proxy API → :3000)
-npm run build    # Salida: ../public/dist/
+# Desde la raíz del proyecto (recomendado)
+cd .. && npm run dev      # API + Vue → http://localhost:5173
+
+# Solo frontend (requiere API en :3000)
+npm run dev               # http://localhost:5173 (proxy API → :3000)
+npm run build             # Salida: ../public/dist/
 ```

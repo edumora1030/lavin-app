@@ -5,6 +5,12 @@ export function getToken() {
   return sessionStorage.getItem(TOKEN_KEY);
 }
 
+export function videoStreamUrl(videoId) {
+  const token = getToken();
+  const base = `/api/videos/${videoId}/stream`;
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+}
+
 export function setSession(token, user) {
   if (token) sessionStorage.setItem(TOKEN_KEY, token);
   else sessionStorage.removeItem(TOKEN_KEY);
@@ -63,6 +69,43 @@ export const api = {
   del: (p) => req('DELETE', p),
   postForm: (p, fd) => req('POST', p, fd, true),
 };
+
+/** Descarga CSV u otro archivo con el token de sesión (un enlace directo no envía Authorization). */
+export async function downloadFile(path, filename = 'export.csv') {
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(path, { headers });
+  if (res.status === 401) {
+    clearSession();
+    if (!window.location.pathname.startsWith('/login')) {
+      window.location.href = '/login';
+    }
+    throw new Error('Sesión expirada. Vuelve a iniciar sesión.');
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    let data = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      /* respuesta no JSON */
+    }
+    throw new Error(data.mensaje || `No se pudo exportar el archivo (${res.status})`);
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 export function uploadVideo(formData, onProgress) {
   return new Promise((resolve, reject) => {

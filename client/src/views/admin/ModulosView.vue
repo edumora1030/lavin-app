@@ -34,6 +34,9 @@
       <button type="button" class="admin-btn admin-btn--primary" @click="abrirCrear">
         + Nuevo módulo
       </button>
+      <div class="admin-filters">
+        <AdminFilterBar v-model="filtroEstado" :options="filtros" aria-label="Filtrar módulos" />
+      </div>
     </div>
 
     <div v-if="loading" style="color:var(--slate-500)">Cargando módulos…</div>
@@ -47,18 +50,31 @@
               <th>Nombre</th>
               <th>Programa</th>
               <th>Ítems</th>
+              <th>Examen</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(m, index) in modulosFiltrados" :key="m.id" :style="{ opacity: m.activo ? 1 : 0.55 }">
+            <tr v-for="(m, index) in modulosFiltradosVisibles" :key="m.id" :class="{ 'is-inactive': !m.activo }">
               <td>{{ index + 1 }}</td>
               <td>{{ m.nombreDisplay || m.nombre }}</td>
               <td>{{ m.programaDisplay || m.programa }}</td>
               <td>{{ m.items?.length || 0 }}</td>
               <td>
-                <span :style="{ color: m.activo ? 'var(--success)' : 'var(--slate-500)' }">
+                <template v-if="puedeExamen(m)">
+                  <span
+                    v-if="tieneExamen(m)"
+                    class="status-badge status-badge--active"
+                  >
+                    {{ examPreguntasCount(m) }} preg.
+                  </span>
+                  <span v-else class="status-badge status-badge--inactive">Sin examen</span>
+                </template>
+                <span v-else style="color:var(--slate-400); font-size:0.8125rem;">—</span>
+              </td>
+              <td>
+                <span class="status-badge" :class="m.activo ? 'status-badge--active' : 'status-badge--inactive'">
                   {{ m.activo ? 'Activo' : 'Inactivo' }}
                 </span>
               </td>
@@ -66,28 +82,48 @@
                 <div class="modulos-actions">
                   <button
                     type="button"
-                    class="modulos-icon-btn"
-                    title="Editar"
+                    class="icon-btn"
+                    title="Editar módulo"
                     aria-label="Editar módulo"
                     @click="abrirEditar(m)"
                   >
                     <Pencil :size="16" stroke-width="2" />
                   </button>
                   <button
+                    v-if="puedeExamen(m)"
+                    type="button"
+                    class="icon-btn"
+                    :title="tieneExamen(m) ? 'Ver examen' : 'Crear examen'"
+                    :aria-label="tieneExamen(m) ? 'Ver examen' : 'Crear examen'"
+                    @click="abrirExamen(m)"
+                  >
+                    <ClipboardList :size="16" stroke-width="2" />
+                  </button>
+                  <button
                     v-if="m.activo"
                     type="button"
-                    class="modulos-icon-btn modulos-icon-btn--danger"
-                    title="Eliminar"
-                    aria-label="Eliminar módulo"
-                    @click="eliminar(m)"
+                    class="icon-btn icon-btn--danger"
+                    title="Deshabilitar módulo"
+                    aria-label="Deshabilitar módulo"
+                    @click="toggleActivo(m, false)"
                   >
-                    <Trash2 :size="16" stroke-width="2" />
+                    <Ban :size="16" stroke-width="2" />
+                  </button>
+                  <button
+                    v-else
+                    type="button"
+                    class="icon-btn icon-btn--success"
+                    title="Habilitar módulo"
+                    aria-label="Habilitar módulo"
+                    @click="toggleActivo(m, true)"
+                  >
+                    <CircleCheck :size="16" stroke-width="2" />
                   </button>
                 </div>
               </td>
             </tr>
-            <tr v-if="!modulosFiltrados.length">
-              <td colspan="6" class="modulos-empty">Sin módulos en esta sección</td>
+            <tr v-if="!modulosFiltradosVisibles.length">
+              <td colspan="7" class="modulos-empty">Sin módulos en esta sección</td>
             </tr>
           </tbody>
         </table>
@@ -114,6 +150,11 @@
             <input v-model.number="form.orden" type="number" min="1">
           </div>
         </div>
+
+        <label v-if="editId" class="modulos-form-check">
+          <input v-model="form.activo" type="checkbox">
+          Módulo activo (visible para empleados)
+        </label>
 
         <div v-if="editId && editModulo?.items?.length" style="margin-top:1.25rem;">
           <h3 style="font-size:0.9375rem; margin-bottom:0.75rem;">Contenido del módulo</h3>
@@ -147,14 +188,24 @@
         </div>
       </form>
     </AppModal>
+
+    <ModuloExamenModal
+      :modulo="examenModulo"
+      @close="examenModulo = null"
+      @updated="onExamenUpdated"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { Building2, Briefcase, Pencil, Trash2 } from '@lucide/vue';
+import { useAppConfirm } from '../../composables/useAppConfirm';
+const { showConfirm } = useAppConfirm();
+import { Building2, Briefcase, Pencil, ClipboardList, Ban, CircleCheck } from '@lucide/vue';
 import { api } from '../../api';
 import AppModal from '../../components/AppModal.vue';
+import AdminFilterBar from '../../components/AdminFilterBar.vue';
+import ModuloExamenModal from '../../components/ModuloExamenModal.vue';
 
 const modulos = ref([]);
 const loading = ref(true);
@@ -162,9 +213,17 @@ const modal = ref(false);
 const editId = ref(null);
 const editModulo = ref(null);
 const addItemMod = ref(null);
+const examenModulo = ref(null);
 const tabActiva = ref('empresa');
+const filtroEstado = ref('todos');
 const form = ref(emptyForm());
 const itemForm = ref({ tipo: 'paso', titulo: '', descripcion: '', archivoUrl: '', orden: 0 });
+
+const filtros = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'activos', label: 'Activos' },
+  { value: 'inactivos', label: 'Inactivos' },
+];
 
 const tabLabel = computed(() =>
   tabActiva.value === 'empresa' ? 'Introducción a la empresa' : 'Introducción al puesto'
@@ -213,6 +272,8 @@ function dedupeModulos(list) {
             ? 'ambos'
             : programas.sort().join(', '),
         orden: Math.min(...grupo.map((m) => m.orden)),
+        activo: ordenado.every((m) => m.activo),
+        grupoIds: grupo.map((m) => m.id),
       };
     })
     .sort((a, b) => a.orden - b.orden || a.nombreDisplay.localeCompare(b.nombreDisplay, 'es'));
@@ -224,8 +285,15 @@ const modulosFiltrados = computed(() =>
   )
 );
 
+const modulosFiltradosVisibles = computed(() => {
+  const list = modulosFiltrados.value;
+  if (filtroEstado.value === 'activos') return list.filter((m) => m.activo);
+  if (filtroEstado.value === 'inactivos') return list.filter((m) => !m.activo);
+  return list;
+});
+
 function emptyForm() {
-  return { nombre: '', slug: '', descripcion: '', programa: 'ambos', alcance: 'empresa', orden: 1 };
+  return { nombre: '', slug: '', descripcion: '', programa: 'ambos', alcance: 'empresa', orden: 1, activo: true };
 }
 
 async function load() {
@@ -258,6 +326,7 @@ function abrirEditar(m) {
     programa: m.programa,
     alcance: m.alcance,
     orden: m.orden,
+    activo: m.activo,
   };
   modal.value = true;
 }
@@ -266,6 +335,11 @@ async function guardar() {
   if (editId.value) {
     const { slug, ...data } = form.value;
     await api.put(`/api/modulos/${editId.value}`, data);
+    const grupo = modulosFiltrados.value.find((x) => x.id === editId.value);
+    if (grupo?.grupoIds?.length > 1 && typeof form.value.activo === 'boolean') {
+      const otros = grupo.grupoIds.filter((id) => id !== editId.value);
+      await Promise.all(otros.map((id) => api.put(`/api/modulos/${id}`, { activo: form.value.activo })));
+    }
   } else {
     await api.post('/api/modulos', form.value);
   }
@@ -273,15 +347,50 @@ async function guardar() {
   await load();
 }
 
-async function eliminar(m) {
-  if (!confirm(`¿Eliminar el módulo "${m.nombre}"?`)) return;
-  await api.del(`/api/modulos/${m.id}`);
+async function toggleActivo(m, activo) {
+  const nombre = m.nombreDisplay || m.nombre;
+  const ok = await showConfirm({
+    title: activo ? `¿Habilitar módulo?` : `¿Deshabilitar módulo?`,
+    message: activo
+      ? `El módulo "${nombre}" volverá a ser visible para los empleados.`
+      : `El módulo "${nombre}" dejará de ser visible para los empleados.`,
+    variant: activo ? 'info' : 'warning',
+    confirmLabel: activo ? 'Habilitar' : 'Deshabilitar',
+  });
+  if (!ok) return;
+  const ids = m.grupoIds?.length ? m.grupoIds : [m.id];
+  await Promise.all(ids.map((id) => api.put(`/api/modulos/${id}`, { activo })));
   await load();
 }
 
 function abrirAddItem() {
   addItemMod.value = editModulo.value;
   itemForm.value = { tipo: 'paso', titulo: '', descripcion: '', archivoUrl: '', orden: (editModulo.value?.items?.length || 0) + 1 };
+}
+
+function puedeExamen(m) {
+  return m.slug !== 'evaluacion-programa';
+}
+
+function tieneExamen(m) {
+  return (m.examenes?.length ?? 0) > 0;
+}
+
+function examPreguntasCount(m) {
+  return m.examenes?.[0]?._count?.preguntas ?? 0;
+}
+
+function abrirExamen(m) {
+  examenModulo.value = m;
+}
+
+async function onExamenUpdated() {
+  const id = examenModulo.value?.id;
+  await load();
+  if (!id) return;
+  const fresh = modulosFiltrados.value.find((x) => x.id === id)
+    || modulos.value.find((x) => x.id === id);
+  if (fresh) examenModulo.value = fresh;
 }
 
 async function saveItem() {
@@ -337,7 +446,63 @@ onMounted(load);
 
 .modulos-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.375rem;
+}
+
+.modulos-form-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--slate-600);
+  cursor: pointer;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-badge--active {
+  background: #ecfdf5;
+  color: #15803d;
+}
+
+.status-badge--inactive {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.admin-btn--sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
+}
+
+.admin-btn--danger {
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.25);
+}
+
+.admin-btn--danger:hover {
+  background: #fef2f2;
+}
+
+.admin-btn--success {
+  color: #15803d;
+  border-color: rgba(22, 163, 74, 0.25);
+}
+
+.admin-btn--success:hover {
+  background: #f0fdf4;
+}
+
+tr.is-inactive td {
+  opacity: 0.72;
 }
 
 .modulos-icon-btn {
@@ -365,6 +530,15 @@ onMounted(load);
 
 .modulos-icon-btn--danger:hover {
   background: rgba(220, 38, 38, 0.06);
+}
+
+.modulos-icon-btn--success {
+  color: var(--success, #16a34a);
+  border-color: rgba(22, 163, 74, 0.25);
+}
+
+.modulos-icon-btn--success:hover {
+  background: rgba(22, 163, 74, 0.06);
 }
 
 .modulos-empty {

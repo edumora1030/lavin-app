@@ -139,8 +139,11 @@
     <div class="videos-card videos-list-card">
       <div class="videos-list-header">
         <div>
-          <h2>Videos cargados ({{ videos.length }})</h2>
+          <h2>Videos cargados ({{ videosFiltrados.length }})</h2>
           <p>Gestiona los videos disponibles para los módulos de inducción.</p>
+        </div>
+        <div class="admin-filters">
+          <AdminFilterBar v-model="filtroEstado" :options="filtrosVideo" aria-label="Filtrar videos" />
         </div>
       </div>
 
@@ -160,16 +163,17 @@
                 <th>Tamaño</th>
                 <th>Módulo</th>
                 <th>Subido</th>
+                <th>Estado</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="v in paginatedVideos" :key="v.id">
+              <tr v-for="v in paginatedVideos" :key="v.id" :class="{ 'is-inactive': v.activo === false }">
                 <td>
                   <div class="videos-title-cell">
                     <button type="button" class="videos-thumb" @click="preview = v" :aria-label="`Ver ${v.titulo}`">
                       <video
-                        :src="`/api/videos/${v.id}/stream`"
+                        :src="videoStreamUrl(v.id)"
                         preload="metadata"
                         muted
                         playsinline
@@ -191,18 +195,49 @@
                 <td>{{ moduloNombre(v.moduloId) }}</td>
                 <td>{{ fmt(v.subidoEn) }}</td>
                 <td>
+                  <span class="status-badge" :class="v.activo !== false ? 'status-badge--active' : 'status-badge--inactive'">
+                    {{ v.activo !== false ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+                <td>
                   <div class="videos-actions">
-                    <button type="button" class="videos-action-btn" @click="preview = v">
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      title="Vista previa"
+                      aria-label="Vista previa"
+                      @click="preview = v"
+                    >
                       <Eye :size="15" stroke-width="2" />
-                      Ver
                     </button>
-                    <button type="button" class="videos-action-btn" @click="abrirAsignar(v)">
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      title="Asignar a ítem"
+                      aria-label="Asignar a ítem"
+                      @click="abrirAsignar(v)"
+                    >
                       <Link2 :size="15" stroke-width="2" />
-                      Asignar a ítem
                     </button>
-                    <button type="button" class="videos-action-btn videos-action-btn--danger" @click="eliminar(v.id)">
-                      <Trash2 :size="15" stroke-width="2" />
-                      Eliminar
+                    <button
+                      v-if="v.activo !== false"
+                      type="button"
+                      class="icon-btn icon-btn--danger"
+                      title="Deshabilitar video"
+                      aria-label="Deshabilitar video"
+                      @click="toggleActivo(v, false)"
+                    >
+                      <Ban :size="15" stroke-width="2" />
+                    </button>
+                    <button
+                      v-else
+                      type="button"
+                      class="icon-btn icon-btn--success"
+                      title="Habilitar video"
+                      aria-label="Habilitar video"
+                      @click="toggleActivo(v, true)"
+                    >
+                      <CircleCheck :size="15" stroke-width="2" />
                     </button>
                   </div>
                 </td>
@@ -235,7 +270,7 @@
 
     <AppModal v-if="preview" @close="preview = null">
       <h2>{{ preview.titulo }}</h2>
-      <video controls style="width:100%; border-radius:12px;" :src="`/api/videos/${preview.id}/stream`"></video>
+      <video controls style="width:100%; border-radius:12px;" :src="videoStreamUrl(preview.id)"></video>
       <p style="font-size:13px; color:var(--text-muted); margin-top:8px;">
         URL: <code>/api/videos/{{ preview.id }}/stream</code>
       </p>
@@ -267,8 +302,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useAppAlert } from '../../composables/useAppAlert';
+import { useAppConfirm } from '../../composables/useAppConfirm';
+const { showAlert } = useAppAlert();
+const { showConfirm } = useAppConfirm();
 import {
+  Ban,
+  CircleCheck,
   CircleHelp,
   CloudUpload,
   ChevronLeft,
@@ -277,11 +318,11 @@ import {
   FileVideo,
   Link2,
   Play,
-  Trash2,
   Video,
 } from '@lucide/vue';
-import { api, uploadVideo } from '../../api';
+import { api, uploadVideo, videoStreamUrl } from '../../api';
 import AppModal from '../../components/AppModal.vue';
+import AdminFilterBar from '../../components/AdminFilterBar.vue';
 import { esModuloConfigurado } from '../../constants/modulos';
 
 const steps = [
@@ -306,10 +347,24 @@ const assignItemId = ref('');
 const currentStep = ref(1);
 const currentPage = ref(1);
 const pageSize = ref(10);
+const filtroEstado = ref('todos');
 const form = ref({ titulo: '', descripcion: '', moduloId: '' });
+
+const filtrosVideo = computed(() => [
+  { value: 'todos', label: 'Todos', count: videos.value.length },
+  { value: 'activos', label: 'Activos', count: videos.value.filter((v) => v.activo !== false).length },
+  { value: 'inactivos', label: 'Inactivos', count: videos.value.filter((v) => v.activo === false).length },
+]);
+
+const videosFiltrados = computed(() => {
+  if (filtroEstado.value === 'activos') return videos.value.filter((v) => v.activo !== false);
+  if (filtroEstado.value === 'inactivos') return videos.value.filter((v) => v.activo === false);
+  return videos.value;
+});
 
 const modulosConfigurados = computed(() =>
   modulos.value
+    .filter((m) => m.activo !== false)
     .filter(esModuloConfigurado)
     .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
 );
@@ -325,10 +380,10 @@ const canContinue = computed(() => {
   return !!file.value && !!form.value.titulo.trim();
 });
 
-const totalPages = computed(() => Math.max(1, Math.ceil(videos.value.length / pageSize.value)));
+const totalPages = computed(() => Math.max(1, Math.ceil(videosFiltrados.value.length / pageSize.value)));
 const paginatedVideos = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value;
-  return videos.value.slice(start, start + pageSize.value);
+  return videosFiltrados.value.slice(start, start + pageSize.value);
 });
 const visiblePages = computed(() => {
   const pages = [];
@@ -336,7 +391,7 @@ const visiblePages = computed(() => {
   return pages.length <= 7 ? pages : [currentPage.value];
 });
 const rangeText = computed(() => {
-  const total = videos.value.length;
+  const total = videosFiltrados.value.length;
   if (!total) return 'Mostrando 0 de 0 videos';
   const start = (currentPage.value - 1) * pageSize.value + 1;
   const end = Math.min(currentPage.value * pageSize.value, total);
@@ -412,6 +467,8 @@ async function subir() {
   fd.append('titulo', form.value.titulo);
   if (form.value.descripcion) fd.append('descripcion', form.value.descripcion);
   if (form.value.moduloId) fd.append('moduloId', form.value.moduloId);
+  const modulo = modulosConfigurados.value.find((m) => m.id === form.value.moduloId);
+  if (modulo?.slug) fd.append('moduloSlug', modulo.slug);
   uploading.value = true;
   pct.value = 0;
   try {
@@ -423,7 +480,7 @@ async function subir() {
     currentPage.value = 1;
     await load();
   } catch (e) {
-    alert(e.message);
+    showAlert({ title: 'Error al subir video', message: e.message, variant: 'error' });
   } finally {
     uploading.value = false;
   }
@@ -435,9 +492,17 @@ function abrirAsignar(v) {
   assignItemId.value = '';
 }
 
-async function eliminar(id) {
-  if (!confirm('¿Eliminar video?')) return;
-  await api.del(`/api/videos/${id}`);
+async function toggleActivo(v, activo) {
+  const ok = await showConfirm({
+    title: activo ? '¿Habilitar video?' : '¿Deshabilitar video?',
+    message: activo
+      ? `"${v.titulo}" volverá a estar disponible.`
+      : `"${v.titulo}" dejará de ser visible para los empleados.`,
+    variant: activo ? 'info' : 'warning',
+    confirmLabel: activo ? 'Habilitar' : 'Deshabilitar',
+  });
+  if (!ok) return;
+  await api.put(`/api/videos/${v.id}`, { activo });
   await load();
 }
 
@@ -447,11 +512,15 @@ async function guardarAsignacion() {
     videoUrl: streamUrl,
   });
   assign.value = null;
-  alert('Video asignado al ítem.');
+  showAlert({ title: 'Video asignado', message: 'El video fue asignado al ítem correctamente.', variant: 'success' });
   await load();
 }
 
 onMounted(load);
+
+watch(filtroEstado, () => {
+  currentPage.value = 1;
+});
 </script>
 
 <style scoped>
@@ -820,6 +889,11 @@ onMounted(load);
 }
 
 .videos-list-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid rgba(30, 58, 95, 0.08);
 }
@@ -951,6 +1025,11 @@ onMounted(load);
   border-color: rgba(220, 38, 38, 0.2);
 }
 
+.videos-action-btn--success {
+  color: var(--success, #16a34a);
+  border-color: rgba(22, 163, 74, 0.25);
+}
+
 .videos-footer {
   display: flex;
   align-items: center;
@@ -989,6 +1068,11 @@ onMounted(load);
 .videos-page-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+
+.videos-table tr.is-inactive td {
+  opacity: 0.72;
 }
 
 @media (max-width: 900px) {

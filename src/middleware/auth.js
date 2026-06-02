@@ -5,7 +5,10 @@ const prisma = require('../config/db');
 async function authRequired(req, res, next) {
   try {
     const header = req.headers.authorization || '';
-    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+    const queryToken = typeof req.query.token === 'string' ? req.query.token : null;
+    const token = header.startsWith('Bearer ')
+      ? header.slice(7)
+      : queryToken;
     if (!token) return Errores.tokenInvalido(res);
 
     let payload;

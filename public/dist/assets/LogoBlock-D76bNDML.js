@@ -1,1 +1,0 @@
-import{_ as e,u as a,f as n,b as o}from"./index-B1a2aSwP.js";const c={},r={class:"gate-logo"};function t(l,s){return a(),n("div",r,[...s[0]||(s[0]=[o("div",{class:"logo-icon","aria-hidden":"true"},null,-1),o("div",null,[o("span",{class:"logo-text"},"Recursos Humanos"),o("span",{class:"logo-sub"},"Programa de inducción")],-1)])])}const d=e(c,[["render",t]]);export{d as L};

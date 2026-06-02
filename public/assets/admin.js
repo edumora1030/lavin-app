@@ -154,16 +154,30 @@ async function renderModulos() {
   main.innerHTML = `<h1>Módulos y contenido</h1><div id="lista"></div>`;
   const modulos = await API.get('/api/modulos');
   document.getElementById('lista').innerHTML = modulos.map(m => `
-    <div class="card">
-      <h2>${escapeHtml(m.nombre)} <span class="badge">${m.programa}/${m.alcance}</span></h2>
+    <div class="card" style="opacity:${m.activo ? 1 : 0.65}">
+      <h2>${escapeHtml(m.nombre)} <span class="badge">${m.programa}/${m.alcance}</span>
+        <span class="badge" style="margin-left:6px;${m.activo ? 'background:#ecfdf5;color:#15803d' : ''}">${m.activo ? 'Activo' : 'Inactivo'}</span>
+      </h2>
       <p>${escapeHtml(m.descripcion||'')}</p>
       <details><summary>Ítems (${m.items.length})</summary>
         <ul>${m.items.map(i => `<li><strong>${i.tipo}:</strong> ${escapeHtml(i.titulo)} ${i.archivoUrl?'<a href="'+escapeHtml(i.archivoUrl)+'" target="_blank">[link]</a>':''}</li>`).join('')}</ul>
       </details>
-      <button class="btn secondary" onclick="agregarItem('${m.id}')">+ Agregar ítem</button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+        <button class="btn secondary" onclick="agregarItem('${m.id}')">+ Agregar ítem</button>
+        ${m.activo
+          ? `<button class="btn danger" onclick="toggleModulo('${m.id}', false, '${escapeHtml(m.nombre)}')">Deshabilitar</button>`
+          : `<button class="btn secondary" onclick="toggleModulo('${m.id}', true, '${escapeHtml(m.nombre)}')">Habilitar</button>`}
+      </div>
     </div>
   `).join('');
 }
+
+window.toggleModulo = async (id, activo, nombre) => {
+  const msg = activo ? `¿Habilitar "${nombre}"?` : `¿Deshabilitar "${nombre}"? Los empleados dejarán de verlo.`;
+  if (!confirm(msg)) return;
+  await API.put('/api/modulos/' + id, { activo });
+  renderModulos();
+};
 
 window.agregarItem = (moduloId) => {
   modal(`
@@ -222,13 +236,22 @@ async function renderVideos() {
   };
   const videos = await API.get('/api/videos');
   document.getElementById('listaVideos').innerHTML = `<div class="card"><h2>Videos cargados</h2>
-    <table><thead><tr><th>Título</th><th>Tamaño</th><th>Subido</th><th></th></tr></thead>
-    <tbody>${videos.map(v => `<tr><td>${escapeHtml(v.titulo)}</td><td>${(Number(v.tamanioBytes)/1024/1024).toFixed(1)} MB</td><td>${new Date(v.subidoEn).toLocaleString()}</td>
-    <td><button class="btn secondary" onclick="prevVideo('${v.id}','${escapeHtml(v.titulo)}')">Ver</button> <button class="btn danger" onclick="delVideo('${v.id}')">Eliminar</button></td></tr>`).join('')}</tbody></table></div>`;
+    <table><thead><tr><th>Título</th><th>Tamaño</th><th>Estado</th><th>Subido</th><th></th></tr></thead>
+    <tbody>${videos.map(v => `<tr style="opacity:${v.activo !== false ? 1 : 0.65}"><td>${escapeHtml(v.titulo)}</td><td>${(Number(v.tamanioBytes)/1024/1024).toFixed(1)} MB</td><td>${v.activo !== false ? 'Activo' : 'Inactivo'}</td><td>${new Date(v.subidoEn).toLocaleString()}</td>
+    <td><button class="btn secondary" onclick="prevVideo('${v.id}','${escapeHtml(v.titulo)}')">Ver</button>
+    ${v.activo !== false
+      ? `<button class="btn danger" onclick="toggleVideo('${v.id}', false, '${escapeHtml(v.titulo)}')">Deshabilitar</button>`
+      : `<button class="btn secondary" onclick="toggleVideo('${v.id}', true, '${escapeHtml(v.titulo)}')">Habilitar</button>`}
+    </td></tr>`).join('')}</tbody></table></div>`;
 }
 
 window.prevVideo = (id, titulo) => modal(`<h2>${escapeHtml(titulo)}</h2><video controls style="width:100%" src="/api/videos/${id}/stream"></video><p style="font-size:13px; color:var(--text-muted)">URL para incrustar: <code>/api/videos/${id}/stream</code></p>`);
-window.delVideo = async (id) => { if (!confirm('Eliminar video?')) return; await API.del(`/api/videos/${id}`); renderVideos(); };
+window.toggleVideo = async (id, activo, titulo) => {
+  const msg = activo ? `¿Habilitar "${titulo}"?` : `¿Deshabilitar "${titulo}"? Los empleados dejarán de verlo.`;
+  if (!confirm(msg)) return;
+  await API.put(`/api/videos/${id}`, { activo });
+  renderVideos();
+};
 
 async function renderExamenes() {
   const main = document.getElementById('adminMain');

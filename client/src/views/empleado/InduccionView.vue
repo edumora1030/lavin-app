@@ -1,38 +1,31 @@
 <template>
-  <div v-if="loading" class="hero"><div class="hero-inner"><p>Cargando…</p></div></div>
+  <div class="empleado-main">
+    <section class="hero-banner" id="inicio">
+      <img
+        :src="portadaUrl"
+        alt="Instalaciones Lavín"
+        class="hero-banner__photo"
+        fetchpriority="high"
+        decoding="async"
+      >
+      <div class="hero-banner__overlay" aria-hidden="true" />
+      <div class="hero-banner__content">
+        <span class="hero-banner__badge">
+          <Building2 :size="13" stroke-width="2" />
+          {{ heroBadge }}
+        </span>
+        <h1>{{ heroTitle }}</h1>
+        <p>{{ heroDesc }}</p>
+        <button type="button" class="hero-btn" @click="scrollToModulos">
+          <span class="hero-btn__icon">
+            <Play :size="15" fill="currentColor" stroke-width="0" />
+          </span>
+          Comenzar inducción
+        </button>
+      </div>
+    </section>
 
-  <template v-else>
-    <div class="inicio-section">
-      <section class="hero-banner" id="inicio">
-        <img
-          :src="portadaUrl"
-          alt="Instalaciones Lavín"
-          class="hero-banner__photo"
-        >
-        <div class="hero-banner__overlay" aria-hidden="true" />
-        <div class="hero-banner__inner">
-          <div class="hero-banner__content">
-            <span class="hero-banner__badge">
-              <Building2 :size="14" stroke-width="2" />
-              {{ heroBadge }}
-            </span>
-            <h1>{{ heroTitle }}</h1>
-            <p>{{ heroDesc }}</p>
-            <div class="hero-banner__actions">
-              <button type="button" class="hero-btn hero-btn--primary" @click="scrollToModulos">
-                <Play :size="18" fill="currentColor" />
-                Comenzar inducción
-              </button>
-              <button type="button" class="hero-btn hero-btn--ghost" @click="scrollToModulosHelp">
-                <CircleHelp :size="18" stroke-width="2" />
-                ¿Cómo funciona?
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section v-if="showAlcanceSelector" class="route-picker">
+    <section v-if="showRoutePicker" class="route-picker">
         <div class="route-picker__head">
           <Layers :size="20" stroke-width="2" />
           <div>
@@ -41,24 +34,27 @@
           </div>
         </div>
 
-        <div class="route-picker__grid">
+        <div class="route-picker__grid" :class="routeGridClass">
           <button
+            v-if="canEmpresa"
             type="button"
             class="route-card route-card--empresa"
             :class="{ 'is-active': alcance === 'empresa' }"
             @click="selectAlcance('empresa')"
           >
             <span class="route-card__icon">
-              <Building2 :size="18" stroke-width="1.75" />
+              <Building2 :size="16" stroke-width="1.75" />
             </span>
             <div class="route-card__body">
               <strong>Inducción a la empresa</strong>
-              <span>Cultura, normas, beneficios y todo lo que necesitas para integrarte.</span>
             </div>
-            <ChevronRight :size="16" class="route-card__arrow" />
+            <span class="route-card__arrow-btn" aria-hidden="true">
+              <ChevronRight :size="16" />
+            </span>
           </button>
 
           <button
+            v-if="canPuesto"
             type="button"
             class="route-card route-card--puesto"
             :class="{ 'is-active': alcance === 'puesto' }"
@@ -71,42 +67,38 @@
               <strong>Inducción al puesto</strong>
               <span>Funciones de tu área, herramientas del rol y actividades específicas.</span>
             </div>
-            <ChevronRight :size="16" class="route-card__arrow" />
+            <span class="route-card__arrow-btn" aria-hidden="true">
+              <ChevronRight :size="16" />
+            </span>
           </button>
 
-          <button type="button" class="route-help" @click="scrollToContacto">
-            <span class="route-help__icon">
-              <CircleHelp :size="18" stroke-width="2" />
+          <button type="button" class="route-card route-card--help" @click="scrollToContacto">
+            <span class="route-card__icon">
+              <CircleHelp :size="16" stroke-width="2" />
             </span>
-            <strong>¿Necesitas ayuda?</strong>
-            <p>El equipo de RR.HH. está disponible para apoyarte en tu proceso de integración.</p>
-            <span class="route-help__link">Ver ayuda →</span>
+            <div class="route-card__body">
+              <strong>¿Necesitas ayuda?</strong>
+            </div>
+            <span class="route-card__arrow-btn" aria-hidden="true">
+              <ChevronRight :size="16" />
+            </span>
           </button>
         </div>
       </section>
-    </div>
 
-    <div class="empleado-main">
       <section id="modulos" class="induccion-course-section">
         <div class="modules-section-header">
-          <div class="modules-section-header__text">
-            <p class="section-label">Programa</p>
-            <h2 class="section-title">Tus módulos de inducción</h2>
-            <p class="section-desc">Sigue el orden recomendado para completar tu inducción de forma clara y efectiva.</p>
-          </div>
-          <div v-if="!showAlcanceSelector" class="modules-help-card" id="modulos-ayuda">
-            <span class="modules-help-card__icon" aria-hidden="true">
-              <PlayCircle :size="22" />
-            </span>
-            <div>
-              <strong>¿Cómo funciona?</strong>
-              <p>Cada módulo incluye un video. Debes completarlos en orden para avanzar en tu inducción.</p>
-            </div>
-          </div>
+          <p class="section-label">Programa</p>
+          <h2 class="section-title">Tus módulos de inducción</h2>
         </div>
 
-        <InduccionCourse
-          ref="courseRef"
+      <div v-if="modulesLoading" class="modules-loading">
+        <p>Cargando módulos…</p>
+      </div>
+
+      <InduccionCourse
+        v-else
+        ref="courseRef"
           embedded
           :modulos="modulos"
           :progreso="progreso"
@@ -163,49 +155,96 @@
         </div>
       </section>
 
-      <section id="contacto" class="section section--contact">
-        <div class="section-header">
-          <p class="section-label">Contacto</p>
-          <h2 class="section-title">¿Necesitas ayuda?</h2>
-          <p class="section-desc">El equipo de Recursos Humanos está para apoyarte durante todo tu proceso de integración.</p>
+      <!-- ── MIS DUDAS ─────────────────────────────────── -->
+      <section v-if="misDudas.length" id="mis-dudas" class="mis-dudas-block">
+        <div class="mis-dudas-block__inner">
+          <header class="mis-dudas-block__head">
+            <CircleHelp :size="20" stroke-width="2" />
+            <div>
+              <h2>Mis dudas enviadas</h2>
+              <p>Aquí puedes ver las respuestas de RR.HH. a tus preguntas.</p>
+            </div>
+          </header>
+          <ul class="mis-dudas-list">
+            <li v-for="d in misDudas" :key="d.id" class="mis-dudas-item" :class="{ 'is-respondida': d.estado === 'respondida' }">
+              <div class="mis-dudas-item__top">
+                <span class="mis-dudas-item__modulo">{{ d.modulo?.nombre }}</span>
+                <span class="mis-dudas-item__badge" :class="d.estado === 'respondida' ? 'badge--ok' : 'badge--pending'">
+                  {{ d.estado === 'respondida' ? 'Respondida' : 'Pendiente' }}
+                </span>
+              </div>
+              <p class="mis-dudas-item__pregunta">{{ d.texto }}</p>
+              <div v-if="d.respuesta" class="mis-dudas-item__respuesta">
+                <span class="mis-dudas-item__respuesta-label">Respuesta de RR.HH.:</span>
+                <p>{{ d.respuesta }}</p>
+              </div>
+            </li>
+          </ul>
         </div>
-        <div class="contact-grid">
-          <div class="contact-card">
-            <h3>Nómina, vacaciones, contrataciones, etc.</h3>
-            <a href="mailto:dbajonero@lavin.com.mx">dbajonero@lavin.com.mx</a>
-            <a href="tel:+527773330300">+52 (777) 333-03-00 Ext. 221 y 112</a>
-          </div>
-          <div class="contact-card">
-            <h3>Capacitación y Sistegrama</h3>
-            <a href="mailto:ljuarez@lavin.com.mx">ljuarez@lavin.com.mx</a>
-            <a href="tel:+527773330300">+52 (777) 333-03-00 Ext. 117</a>
-          </div>
-          <div class="contact-card">
-            <h3>Administración de personal</h3>
-            <a href="mailto:sperez@lavin.com.mx">sperez@lavin.com.mx</a>
-            <a href="mailto:ycalderon@lavin.com.mx">ycalderon@lavin.com.mx</a>
-            <a href="tel:+527773330300">+52 (777) 333-03-00 Ext. 281 y 136</a>
+      </section>
+
+      <section id="contacto" class="contact-block">
+        <div class="contact-block__panel">
+          <header class="contact-block__header">
+            <p class="contact-block__label">Contacto</p>
+            <h2 class="contact-block__title">¿Necesitas ayuda?</h2>
+            <p class="contact-block__desc">
+              El equipo de Recursos Humanos está para apoyarte durante todo tu proceso de integración.
+            </p>
+          </header>
+
+          <div class="contact-block__grid">
+            <article class="contact-block__card">
+              <h3>Nómina, vacaciones, contrataciones, etc.</h3>
+              <div class="contact-block__links">
+                <a href="mailto:dbajonero@lavin.com.mx">dbajonero@lavin.com.mx</a>
+                <a href="tel:+527773330300">+52 (777) 333-03-00 Ext. 221 y 112</a>
+              </div>
+            </article>
+
+            <article class="contact-block__card">
+              <h3>Capacitación y Sistegrama</h3>
+              <div class="contact-block__links">
+                <a href="mailto:ljuarez@lavin.com.mx">ljuarez@lavin.com.mx</a>
+                <a href="tel:+527773330300">+52 (777) 333-03-00 Ext. 117</a>
+              </div>
+            </article>
+
+            <article class="contact-block__card">
+              <h3>Administración de personal</h3>
+              <div class="contact-block__links">
+                <a href="mailto:sperez@lavin.com.mx">sperez@lavin.com.mx</a>
+                <a href="mailto:ycalderon@lavin.com.mx">ycalderon@lavin.com.mx</a>
+                <a href="tel:+527773330300">+52 (777) 333-03-00 Ext. 281 y 136</a>
+              </div>
+            </article>
           </div>
         </div>
       </section>
-    </div>
+  </div>
 
-    <AppModal v-if="examenModal" @close="examenModal = null">
-      <h2>{{ examenModal.titulo }}</h2>
-      <p style="color:var(--text-muted)">{{ examenModal.descripcion }} · Mínimo: {{ examenModal.calificacionMinima }}%</p>
-      <form @submit.prevent="submitExamen">
-        <div v-for="(p, i) in examenModal.preguntas" :key="p.id" class="form-group" style="margin-top:16px">
-          <div style="font-weight:600; margin-bottom:8px">{{ i + 1 }}. {{ p.texto }}</div>
-          <label v-for="o in p.opciones" :key="o.id" style="display:flex; gap:8px; padding:8px; cursor:pointer;">
-            <input v-model="respuestas[p.id]" type="radio" :value="o.id" required>
-            <span>{{ o.texto }}</span>
-          </label>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn secondary" @click="examenModal = null">Cancelar</button>
-          <button type="submit" class="btn">Enviar examen</button>
-        </div>
-      </form>
+  <AppModal v-if="examenModal" wide exam @close="examenModal = null">
+      <div class="modal-exam">
+        <header class="modal-exam__head">
+          <h2>{{ examenModal.titulo }}</h2>
+          <p class="examen-form__meta">{{ examenModal.descripcion }} · Mínimo: {{ examenModal.calificacionMinima }}%</p>
+        </header>
+        <form class="examen-form modal-exam__body" @submit.prevent="submitExamen">
+          <div v-for="(p, i) in examenModal.preguntas" :key="p.id" class="form-group">
+            <div class="examen-form__question">{{ i + 1 }}. {{ p.texto }}</div>
+            <div class="examen-form__options">
+              <label v-for="o in p.opciones" :key="o.id" class="examen-form__option">
+                <input v-model="respuestas[p.id]" type="radio" :value="o.id" required>
+                <span>{{ o.texto }}</span>
+              </label>
+            </div>
+          </div>
+          <footer class="modal-exam__foot modal-actions">
+            <button type="button" class="btn secondary" @click="examenModal = null">Cancelar</button>
+            <button type="submit" class="btn">Enviar examen</button>
+          </footer>
+        </form>
+      </div>
     </AppModal>
 
     <AppModal v-if="dudaModal" @close="dudaModal = null">
@@ -222,7 +261,6 @@
         </div>
       </form>
     </AppModal>
-  </template>
 </template>
 
 <script setup>
@@ -232,31 +270,52 @@ import { useAuthStore } from '../../stores/auth';
 import { api } from '../../api';
 import InduccionCourse from '../../components/InduccionCourse.vue';
 import AppModal from '../../components/AppModal.vue';
-import { PlayCircle, CircleCheck, Factory, Monitor, Building2, Briefcase, Layers, CircleHelp, ChevronRight, Play } from '@lucide/vue';
+import { useAppAlert } from '../../composables/useAppAlert';
+import { CircleCheck, Factory, Monitor, Building2, Briefcase, Layers, CircleHelp, ChevronRight, Play } from '@lucide/vue';
+
+const { showAlert } = useAppAlert();
 
 const portadaUrl = '/assets/lavin-portada.jpg';
 
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
-const loading = ref(true);
+const modulesLoading = ref(true);
 const modulos = ref([]);
 const progreso = ref([]);
 const courseRef = ref(null);
 const activeModuloId = ref(null);
 const examenModal = ref(null);
+const examenModuloId = ref(null);
 const intentoId = ref(null);
 const respuestas = ref({});
 const dudaModal = ref(null);
 const dudaTexto = ref('');
+const misDudas = ref([]);
+
+async function cargarMisDudas() {
+  try {
+    misDudas.value = await api.get('/api/dudas/mias');
+  } catch { /* silenciar */ }
+}
 const solicitudes = ref([]);
 const solicitando = ref(null);
 
 const alcance = computed(() => route.params.alcance || 'empresa');
 
-const showAlcanceSelector = computed(() => {
-  const u = auth.user;
-  return u?.programa === 'administrativo' && u?.induccionEmpresaHabilitada && u?.induccionPuestoHabilitada;
+const showRoutePicker = computed(() => canEmpresa.value || canPuesto.value);
+
+const canEmpresa = computed(() => !!auth.user?.induccionEmpresaHabilitada);
+
+const canPuesto = computed(() =>
+  auth.user?.programa === 'administrativo' && !!auth.user?.induccionPuestoHabilitada
+);
+
+const routeGridClass = computed(() => {
+  const cards = (canEmpresa.value ? 1 : 0) + (canPuesto.value ? 1 : 0) + 1;
+  if (cards >= 3) return 'route-picker__grid--three';
+  if (cards === 2) return 'route-picker__grid--two';
+  return 'route-picker__grid--one';
 });
 
 const heroBadge = computed(() => {
@@ -265,7 +324,10 @@ const heroBadge = computed(() => {
   return `${programa} · ${scope} · Colaborador`;
 });
 
-const heroTitle = computed(() => 'Bienvenido/a a Industrias Lavin');
+const heroTitle = computed(() => {
+  const firstName = auth.user?.nombre?.trim().split(/\s+/)[0];
+  return firstName ? `Bienvenido(a), ${firstName}` : 'Bienvenido(a) a Industrias Lavin';
+});
 
 const heroDesc = computed(() =>
   alcance.value === 'empresa'
@@ -319,12 +381,12 @@ async function fetchInduccionData() {
   solicitudes.value = s;
 }
 
-async function loadData() {
-  loading.value = true;
+async function loadData({ silent = false } = {}) {
+  if (!silent) modulesLoading.value = true;
   try {
     await fetchInduccionData();
   } finally {
-    loading.value = false;
+    modulesLoading.value = false;
   }
 }
 
@@ -345,11 +407,19 @@ async function solicitarPaso(tipo) {
       if (idx >= 0) solicitudes.value[idx] = r.notificacion;
       else solicitudes.value.unshift(r.notificacion);
     }
-    alert(r.yaEnviada
-      ? 'RR.HH. ya recibió tu solicitud. Te contactarán pronto.'
-      : 'Solicitud enviada. RR.HH. fue notificado y te contactará para coordinar.');
+    showAlert({
+      title: r.yaEnviada ? 'Solicitud registrada' : 'Solicitud enviada',
+      message: r.yaEnviada
+        ? 'RR.HH. ya recibió tu solicitud. Te contactarán pronto.'
+        : 'RR.HH. fue notificado y te contactará para coordinar.',
+      variant: 'success',
+    });
   } catch (e) {
-    alert(e.message || 'No se pudo enviar la solicitud.');
+    showAlert({
+      title: 'No se pudo enviar',
+      message: e.message || 'No se pudo enviar la solicitud.',
+      variant: 'error',
+    });
   } finally {
     solicitando.value = null;
   }
@@ -367,14 +437,6 @@ async function selectAlcance(nuevoAlcance) {
   scrollToModulos();
 }
 
-function scrollToModulosHelp() {
-  if (showAlcanceSelector.value) {
-    scrollToModulos();
-    return;
-  }
-  document.getElementById('modulos-ayuda')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
 function scrollToContacto() {
   document.getElementById('contacto')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -387,16 +449,32 @@ function abrirDuda(modulo) {
 async function enviarDuda() {
   await api.post('/api/dudas', { moduloId: dudaModal.value.id, texto: dudaTexto.value });
   dudaModal.value = null;
-  alert('Tu duda ha sido enviada. RR.HH. te contactará.');
+  await cargarMisDudas();
+  showAlert({
+    title: 'Duda enviada',
+    message: 'Tu duda ha sido enviada. RR.HH. te contactará pronto.',
+    variant: 'success',
+  });
 }
 
 async function openExamen(moduloId) {
   const examen = await api.get(`/api/examenes/${moduloId}`);
-  if (examen.yaAprobado) { alert('Ya aprobaste este examen.'); return; }
-  if (examen.intentosRestantes <= 0) { alert('Se agotaron los intentos. Contacta a RR.HH.'); return; }
+  if (examen.yaAprobado) {
+    showAlert({ title: 'Examen completado', message: 'Ya aprobaste este examen.', variant: 'info' });
+    return;
+  }
+  if (examen.intentosRestantes <= 0) {
+    showAlert({
+      title: 'Intentos agotados',
+      message: 'Se agotaron los intentos. Contacta a RR.HH.',
+      variant: 'error',
+    });
+    return;
+  }
   const intento = await api.post(`/api/examenes/${examen.id}/iniciar`, {});
   intentoId.value = intento.intentoId;
   respuestas.value = {};
+  examenModuloId.value = moduloId;
   examenModal.value = examen;
 }
 
@@ -406,29 +484,46 @@ async function submitExamen() {
     respuestas: respuestas.value,
   });
   examenModal.value = null;
-  alert(`Resultado: ${r.correctas}/${r.total} (${r.calificacion}%) — ${r.aprobado ? 'APROBADO' : 'No aprobado'}`);
-  await loadData();
+  examenModuloId.value = null;
+  showAlert({
+    title: r.aprobado ? '¡Examen aprobado!' : 'Examen no aprobado',
+    message: r.aprobado
+      ? (r.moduloCompletado ? 'Módulo finalizado. Puedes continuar con el siguiente.' : 'Puedes continuar con el siguiente módulo.')
+      : 'Revisa el contenido e inténtalo de nuevo.',
+    variant: r.aprobado ? 'success' : 'error',
+    score: {
+      correctas: r.correctas,
+      total: r.total,
+      calificacion: r.calificacion,
+      aprobado: r.aprobado,
+    },
+  });
+  await refreshProgreso();
 }
 
-watch(alcance, () => loadData());
-onMounted(loadData);
+watch(alcance, () => loadData({ silent: true }));
+onMounted(() => {
+  loadData();
+  cargarMisDudas();
+});
 </script>
 
 <style scoped>
-/* Hero banner */
-.inicio-section {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 1.5rem 1.5rem 0;
+/* ── Contenedor principal ── */
+.empleado-main {
+  padding-top: 1.25rem;
 }
 
+/* ── Hero banner ── */
 .hero-banner {
-  scroll-margin-top: 4rem;
-  border-radius: 24px;
-  overflow: hidden;
-  box-shadow: 0 20px 50px rgba(15, 39, 68, 0.22);
   position: relative;
-  min-height: clamp(420px, 42vw, 520px);
+  overflow: hidden;
+  border-radius: 16px;
+  height: 400px;
+  scroll-margin-top: 4rem;
+  box-shadow:
+    0 4px 6px rgba(10, 22, 40, 0.04),
+    0 16px 48px rgba(10, 22, 40, 0.14);
 }
 
 .hero-banner__photo {
@@ -437,110 +532,113 @@ onMounted(loadData);
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 68%;
+  object-position: 62% 78%;
 }
 
 .hero-banner__overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    105deg,
-    rgba(15, 39, 68, 0.92) 0%,
-    rgba(30, 58, 95, 0.78) 38%,
-    rgba(30, 58, 95, 0.35) 62%,
-    rgba(15, 39, 68, 0.15) 100%
-  );
-}
-
-.hero-banner__inner {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  min-height: clamp(420px, 42vw, 520px);
-  padding: 2.5rem;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(8, 18, 34, 0.88) 0%,
+      rgba(8, 18, 34, 0.72) 28%,
+      rgba(8, 18, 34, 0.38) 52%,
+      rgba(8, 18, 34, 0.08) 78%,
+      rgba(8, 18, 34, 0) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(8, 18, 34, 0.08) 0%,
+      rgba(8, 18, 34, 0.24) 100%
+    );
 }
 
 .hero-banner__content {
-  max-width: 560px;
+  position: relative;
+  z-index: 2;
+  height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  padding: 2.5rem 3rem;
+  max-width: 500px;
 }
 
 .hero-banner__badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   width: fit-content;
-  padding: 0.4rem 0.875rem;
-  margin-bottom: 1.25rem;
-  background: rgba(15, 39, 68, 0.45);
+  padding: 0.3rem 0.7rem;
+  margin-bottom: 1rem;
+  background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 100px;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.92);
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
 }
 
 .hero-banner__content h1 {
-  margin: 0 0 0.875rem;
-  font-size: clamp(1.875rem, 4.5vw, 2.625rem);
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.75rem, 3.2vw, 2.375rem);
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.025em;
   line-height: 1.15;
   color: #fff;
-  max-width: 520px;
 }
 
 .hero-banner__content p {
-  margin: 0 0 1.75rem;
-  font-size: 1.0625rem;
+  margin: 0 0 1.5rem;
+  font-size: 0.9375rem;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.88);
-  max-width: 480px;
-}
-
-.hero-banner__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 380px;
 }
 
 .hero-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.7rem 1.25rem;
-  border-radius: 10px;
+  gap: 0.625rem;
+  width: fit-content;
+  padding: 0.75rem 1.375rem 0.75rem 0.75rem;
+  border-radius: 12px;
   font-size: 0.9375rem;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  text-decoration: none;
   border: none;
-  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
-}
-
-.hero-btn--primary {
-  background: #3b82f6;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: #fff;
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.45);
+  box-shadow:
+    0 1px 2px rgba(37, 99, 235, 0.2),
+    0 6px 20px rgba(37, 99, 235, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.hero-btn--primary:hover {
+.hero-btn__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  flex-shrink: 0;
+}
+
+.hero-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.5);
+  box-shadow:
+    0 2px 4px rgba(37, 99, 235, 0.25),
+    0 10px 28px rgba(37, 99, 235, 0.4);
 }
 
-.hero-btn--ghost {
-  background: transparent;
-  color: #fff;
-  border: 1.5px solid rgba(255, 255, 255, 0.45);
-}
-
-.hero-btn--ghost:hover {
-  background: rgba(255, 255, 255, 0.08);
+.hero-btn:active {
+  transform: translateY(0);
 }
 
 /* Route picker */
@@ -572,30 +670,45 @@ onMounted(loadData);
   color: var(--slate-500);
 }
 
+.route-picker__grid--three {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.route-picker__grid--two {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.route-picker__grid--one {
+  grid-template-columns: 1fr;
+}
+
 .route-picker__grid {
   display: grid;
-  grid-template-columns: 1fr 1fr minmax(180px, 0.7fr);
   gap: 0.75rem;
   align-items: stretch;
+}
+
+.route-picker__grid .route-card {
+  padding: 0.875rem 1rem;
+  border-radius: 10px;
 }
 
 .route-card {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
+  gap: 0.75rem;
   width: 100%;
-  padding: 0.75rem 0.875rem;
+  padding: 1rem 1rem 1rem 1.125rem;
   background: var(--white);
   border: 1px solid rgba(30, 58, 95, 0.08);
-  border-radius: 10px;
+  border-radius: 12px;
   box-shadow: var(--shadow-card);
-  text-decoration: none;
   text-align: left;
   color: inherit;
   font-family: inherit;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
-  border-left-width: 3px;
+  border-left-width: 4px;
 }
 
 .route-card:hover {
@@ -619,6 +732,28 @@ onMounted(loadData);
 .route-card--puesto.is-active {
   border-color: #86efac;
   box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.12);
+}
+
+.route-picker__grid .route-card__icon {
+  width: 2rem;
+  height: 2rem;
+}
+
+.route-picker__grid .route-card__body strong {
+  font-size: 0.8125rem;
+}
+
+.route-picker__grid .route-card__body span {
+  display: none;
+}
+
+.route-card--help {
+  border-left-color: var(--blue-400, #60a5fa);
+}
+
+.route-card--help .route-card__icon {
+  background: var(--blue-50);
+  color: var(--blue-600);
 }
 
 .route-card__icon {
@@ -650,134 +785,47 @@ onMounted(loadData);
 }
 
 .route-card__body strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--blue-900);
 }
 
 .route-card__body span {
   font-size: 0.75rem;
   color: var(--slate-500);
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
-.route-card__arrow {
+.route-card__arrow-btn {
   flex-shrink: 0;
-  color: var(--slate-400);
-}
-
-.route-help {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
-  padding: 0.75rem 0.875rem;
-  background: var(--white);
-  border: 1px solid rgba(30, 58, 95, 0.08);
-  border-radius: 10px;
-  box-shadow: var(--shadow-card);
-  text-align: left;
-  font-family: inherit;
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-
-.route-help:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-}
-
-.route-help__icon {
   width: 2rem;
   height: 2rem;
-  border-radius: 50%;
-  background: var(--blue-50);
-  color: var(--blue-600);
-  display: flex;
+  margin-left: auto;
+  border: 1px solid rgba(30, 58, 95, 0.12);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--slate-500);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 0.15rem;
-}
-
-.route-help strong {
-  font-size: 0.8125rem;
-  color: var(--blue-900);
-}
-
-.route-help p {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--slate-500);
-  line-height: 1.4;
-}
-
-.route-help__link {
-  margin-top: 0.2rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--blue-600);
 }
 
 .induccion-course-section {
-  padding-top: 2rem;
+  padding-top: 1.75rem;
 }
 
-.modules-section-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.modules-section-header__text {
-  flex: 1;
-  min-width: 260px;
-}
-
-.modules-help-card {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-  max-width: 320px;
-  padding: 1rem 1.125rem;
+.modules-loading {
+  padding: 2rem 1.25rem;
+  text-align: center;
+  color: var(--slate-500);
+  font-size: 0.9375rem;
   background: var(--white);
   border: 1px solid rgba(30, 58, 95, 0.08);
   border-radius: 12px;
   box-shadow: var(--shadow-card);
 }
 
-.modules-help-card__icon {
-  flex-shrink: 0;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 10px;
-  background: var(--blue-50);
-  color: var(--blue-600);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modules-help-card strong {
-  display: block;
-  font-size: 0.875rem;
-  color: var(--blue-900);
-  margin-bottom: 0.25rem;
-}
-
-.modules-help-card p {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--slate-500);
-  line-height: 1.45;
-}
-
-@media (max-width: 720px) {
-  .modules-help-card {
-    max-width: none;
-    width: 100%;
-  }
+.modules-section-header {
+  margin-bottom: 1.25rem;
 }
 
 .post-induccion {
@@ -885,6 +933,219 @@ onMounted(loadData);
   line-height: 1.4;
 }
 
+/* ── Contacto ── */
+/* ── Mis dudas ── */
+.mis-dudas-block {
+  margin-top: 1.5rem;
+  scroll-margin-top: 5rem;
+}
+
+.mis-dudas-block__inner {
+  background: #fff;
+  border: 1px solid var(--border, rgba(30,58,95,0.1));
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(30,58,95,0.05);
+}
+
+.mis-dudas-block__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  color: var(--blue-600, #2563eb);
+  margin-bottom: 1.25rem;
+}
+
+.mis-dudas-block__head h2 {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--blue-900, #1e3a5f);
+  margin: 0 0 0.2rem;
+}
+
+.mis-dudas-block__head p {
+  font-size: 0.8125rem;
+  color: var(--slate-500, #64748b);
+  margin: 0;
+}
+
+.mis-dudas-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.mis-dudas-item {
+  border: 1px solid var(--border, rgba(30,58,95,0.1));
+  border-radius: 12px;
+  padding: 1rem 1.125rem;
+  background: #fafbfc;
+}
+
+.mis-dudas-item.is-respondida {
+  border-color: rgba(22,163,74,0.25);
+  background: #f0fdf4;
+}
+
+.mis-dudas-item__top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.mis-dudas-item__modulo {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--slate-500, #64748b);
+}
+
+.mis-dudas-item__badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+.badge--pending {
+  background: #fff7ed;
+  color: #d97706;
+}
+
+.badge--ok {
+  background: #ecfdf5;
+  color: #15803d;
+}
+
+.mis-dudas-item__pregunta {
+  font-size: 0.9375rem;
+  color: var(--blue-900, #1e3a5f);
+  margin: 0 0 0.625rem;
+}
+
+.mis-dudas-item__respuesta {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  border-left: 3px solid #22c55e;
+  border-radius: 0 8px 8px 0;
+}
+
+.mis-dudas-item__respuesta-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #15803d;
+  margin-bottom: 0.25rem;
+}
+
+.mis-dudas-item__respuesta p {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--blue-900, #1e3a5f);
+}
+
+.contact-block {
+  margin-top: 1.5rem;
+  scroll-margin-top: 5rem;
+}
+
+.contact-block__panel {
+  background: var(--white);
+  border: 1px solid rgba(30, 58, 95, 0.08);
+  border-radius: 14px;
+  padding: 1.125rem 1.25rem 1.25rem;
+  box-shadow: var(--shadow-card);
+}
+
+.contact-block__header {
+  margin-bottom: 0.875rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid rgba(30, 58, 95, 0.08);
+}
+
+.contact-block__label {
+  margin: 0 0 0.2rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--blue-600);
+}
+
+.contact-block__title {
+  margin: 0 0 0.3rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--blue-900);
+}
+
+.contact-block__desc {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--slate-500);
+}
+
+.contact-block__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.625rem;
+  align-items: stretch;
+}
+
+.contact-block__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 7.5rem;
+  padding: 0.875rem 1rem;
+  background: linear-gradient(145deg, var(--blue-800), var(--blue-900));
+  color: var(--white);
+  border-radius: 10px;
+}
+
+.contact-block__card h3 {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.contact-block__links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: auto;
+}
+
+.contact-block__links a {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--blue-100);
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.contact-block__links a:hover {
+  color: var(--white);
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .contact-block__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-block__card {
+    min-height: 0;
+  }
+}
+
 @media (max-width: 640px) {
   .post-induccion__actions {
     grid-template-columns: 1fr;
@@ -892,26 +1153,29 @@ onMounted(loadData);
 }
 
 @media (max-width: 960px) {
-  .hero-banner,
-  .hero-banner__inner {
-    min-height: 380px;
+  .hero-banner {
+    height: auto;
+    min-height: 420px;
   }
 
   .hero-banner__photo {
-    object-position: center 62%;
-  }
-
-  .hero-banner__inner {
-    padding: 2rem 1.5rem;
+    object-position: 58% 82%;
   }
 
   .hero-banner__overlay {
-    background: linear-gradient(
-      180deg,
-      rgba(15, 39, 68, 0.9) 0%,
-      rgba(30, 58, 95, 0.75) 55%,
-      rgba(15, 39, 68, 0.45) 100%
-    );
+    background:
+      linear-gradient(
+        180deg,
+        rgba(8, 18, 34, 0.08) 0%,
+        rgba(8, 18, 34, 0.45) 42%,
+        rgba(8, 18, 34, 0.92) 100%
+      );
+  }
+
+  .hero-banner__content {
+    justify-content: flex-end;
+    padding: 2rem 1.5rem;
+    max-width: none;
   }
 
   .route-picker__grid {

@@ -36,14 +36,17 @@ exports.uploader = multer({
 
 exports.listar = async (req, res) => {
   const { moduloId } = req.query;
-  const where = { activo: true };
+  const where = {};
+  if (req.usuario.rol !== 'admin') where.activo = true;
   if (moduloId) where.moduloId = moduloId;
   const videos = await prisma.video.findMany({
     where,
     orderBy: { subidoEn: 'desc' },
-    select: { id: true, titulo: true, descripcion: true, mimetype: true, tamanioBytes: true, duracionSegundos: true, moduloId: true, subidoEn: true },
+    select: {
+      id: true, titulo: true, descripcion: true, mimetype: true, tamanioBytes: true,
+      duracionSegundos: true, moduloId: true, subidoEn: true, activo: true,
+    },
   });
-  // BigInt → string
   return res.json(videos.map(v => ({ ...v, tamanioBytes: v.tamanioBytes.toString() })));
 };
 
@@ -65,6 +68,20 @@ exports.subir = async (req, res) => {
         subidoPor: req.usuario.id,
       },
     });
+
+    if (moduloId) {
+      const item = await prisma.itemModulo.findFirst({
+        where: { moduloId, activo: true },
+        orderBy: { orden: 'asc' },
+      });
+      if (item) {
+        await prisma.itemModulo.update({
+          where: { id: item.id },
+          data: { videoUrl: `/api/videos/${video.id}/stream` },
+        });
+      }
+    }
+
     await auditar({ usuarioId: req.usuario.id, accion: 'video_subido', detalle: { id: video.id } });
     return res.status(201).json({ ...video, tamanioBytes: video.tamanioBytes.toString() });
   } catch (e) {
@@ -73,20 +90,44 @@ exports.subir = async (req, res) => {
   }
 };
 
+exports.actualizar = async (req, res) => {
+  const { titulo, descripcion, moduloId, activo } = req.body;
+  const data = {};
+  if (titulo !== undefined) data.titulo = titulo;
+  if (descripcion !== undefined) data.descripcion = descripcion;
+  if (moduloId !== undefined) data.moduloId = moduloId || null;
+  if (activo !== undefined) data.activo = activo;
+  try {
+    const video = await prisma.video.update({ where: { id: req.params.id }, data });
+    await auditar({
+      usuarioId: req.usuario.id,
+      accion: activo === false ? 'video_deshabilitado' : activo === true ? 'video_habilitado' : 'video_actualizado',
+      detalle: { id: video.id },
+    });
+    return res.json({ ...video, tamanioBytes: video.tamanioBytes.toString() });
+  } catch {
+    return Errores.noEncontrado(res, 'Video');
+  }
+};
+
 exports.eliminar = async (req, res) => {
-  const video = await prisma.video.findUnique({ where: { id: req.params.id } });
-  if (!video) return Errores.noEncontrado(res, 'Video');
-  const ruta = path.join(UPLOAD_DIR, video.ruta);
-  try { await fsp.unlink(ruta); } catch {}
-  await prisma.video.delete({ where: { id: video.id } });
-  await auditar({ usuarioId: req.usuario.id, accion: 'video_eliminado', detalle: { id: video.id } });
-  return res.json({ ok: true });
+  try {
+    const video = await prisma.video.update({
+      where: { id: req.params.id },
+      data: { activo: false },
+    });
+    await auditar({ usuarioId: req.usuario.id, accion: 'video_deshabilitado', detalle: { id: video.id } });
+    return res.json({ ...video, tamanioBytes: video.tamanioBytes.toString() });
+  } catch {
+    return Errores.noEncontrado(res, 'Video');
+  }
 };
 
 // Streaming con Range headers
 exports.stream = async (req, res) => {
   const video = await prisma.video.findUnique({ where: { id: req.params.id } });
-  if (!video || !video.activo) return Errores.noEncontrado(res, 'Video');
+  if (!video) return Errores.noEncontrado(res, 'Video');
+  if (!video.activo && req.usuario?.rol !== 'admin') return Errores.noEncontrado(res, 'Video');
   const filePath = path.join(UPLOAD_DIR, video.ruta);
   if (!fs.existsSync(filePath)) return Errores.noEncontrado(res, 'Archivo');
 
