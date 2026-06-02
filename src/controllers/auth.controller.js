@@ -29,17 +29,62 @@ async function emitirSesion(res, usuario, req) {
   return res.json({ token, usuario: serializarUsuario(usuario) });
 }
 
+async function nuncaEstablecioPassword(usuarioId) {
+  const log = await prisma.logAuditoria.findFirst({
+    where: { usuarioId, accion: 'password_establecida' },
+  });
+  return !log;
+}
+
+async function debeCrearPassword(usuario) {
+  if (!usuario || usuario.rol !== 'empleado') return false;
+  return usuario.primerLogin || (await nuncaEstablecioPassword(usuario.id));
+}
+
+async function buscarPorNomina(nomina) {
+  return prisma.usuario.findFirst({
+    where: { nomina: { equals: nomina, mode: 'insensitive' } },
+  });
+}
+
+function pareceNominaAdmin(nomina) {
+  return /^admin/i.test(String(nomina).trim());
+}
+
+async function responderCrearPassword(res, usuario) {
+  if (!usuario.primerLogin) {
+    await prisma.usuario.update({
+      where: { id: usuario.id },
+      data: { primerLogin: true },
+    });
+  }
+  return errorResponse(res, 401, 'REQUIERE_ESTABLECER_PASSWORD', 'Debes crear tu contraseña para continuar.', {
+    nomina: usuario.nomina,
+    nombre: usuario.nombre,
+  });
+}
+
 exports.ingreso = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return Errores.validacion(res, errors.array().map(e => ({ campo: e.path, mensaje: e.msg })));
 
   const nomina = String(req.body.nomina).trim();
   const password = req.body.password;
-  let usuario = await prisma.usuario.findUnique({ where: { nomina } });
+  let usuario = await buscarPorNomina(nomina);
 
   if (usuario && !usuario.activo) {
     await auditar({ accion: 'login_fallido', detalle: { nomina }, ip: req.ip });
     return Errores.credenciales(res);
+  }
+
+  if (usuario && pareceNominaAdmin(nomina) && usuario.rol === 'empleado') {
+    await auditar({ accion: 'login_fallido', detalle: { nomina, motivo: 'nomina_admin_incorrecta' }, ip: req.ip });
+    return errorResponse(
+      res,
+      401,
+      'CREDENCIALES_INCORRECTAS',
+      'Esa nómina no es de administrador. Para RR.HH. usa ADMIN001.',
+    );
   }
 
   const requierePassword = usuario && (usuario.rol === 'admin' || usuario.rol === 'supervisor');
@@ -57,6 +102,15 @@ exports.ingreso = async (req, res) => {
   }
 
   if (!usuario) {
+    if (pareceNominaAdmin(nomina)) {
+      await auditar({ accion: 'login_fallido', detalle: { nomina }, ip: req.ip });
+      return errorResponse(
+        res,
+        401,
+        'CREDENCIALES_INCORRECTAS',
+        'Nómina de administrador no encontrada. Usa ADMIN001 (credenciales en README).',
+      );
+    }
     const hash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
     usuario = await prisma.usuario.create({
       data: {
@@ -69,13 +123,14 @@ exports.ingreso = async (req, res) => {
       },
     });
     await auditar({ usuarioId: usuario.id, accion: 'usuario_auto_creado', detalle: { nomina }, ip: req.ip });
-  }
-
-  if (usuario.rol === 'empleado' && usuario.primerLogin) {
-    return errorResponse(res, 401, 'REQUIERE_ESTABLECER_PASSWORD', 'Debes establecer tu contraseña.', {
+    return errorResponse(res, 401, 'REQUIERE_ESTABLECER_PASSWORD', 'Debes crear tu contraseña para continuar.', {
       nomina: usuario.nomina,
       nombre: usuario.nombre,
     });
+  }
+
+  if (await debeCrearPassword(usuario)) {
+    return responderCrearPassword(res, usuario);
   }
 
   if (usuario.rol === 'empleado') {
@@ -99,10 +154,18 @@ exports.establecerPassword = async (req, res) => {
 
   const nomina = String(req.body.nomina).trim();
   const { passwordNueva } = req.body;
-  const usuario = await prisma.usuario.findUnique({ where: { nomina } });
+  const usuario = await buscarPorNomina(nomina);
 
   if (!usuario || !usuario.activo || usuario.rol !== 'empleado') {
     return Errores.credenciales(res);
+  }
+
+  const puedeEstablecer = usuario.primerLogin || (await nuncaEstablecioPassword(usuario.id));
+  if (!puedeEstablecer) {
+    return Errores.validacion(res, [{
+      campo: 'nomina',
+      mensaje: 'Tu contraseña ya fue configurada. Si la olvidaste, contacta a RR.HH.',
+    }]);
   }
 
   if (!/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(passwordNueva)) {
@@ -127,7 +190,7 @@ exports.login = async (req, res) => {
   if (!errors.isEmpty()) return Errores.validacion(res, errors.array().map(e => ({ campo: e.path, mensaje: e.msg })));
 
   const { nomina, password } = req.body;
-  const usuario = await prisma.usuario.findUnique({ where: { nomina: String(nomina).trim() } });
+  const usuario = await buscarPorNomina(String(nomina).trim());
 
   if (!usuario || !usuario.activo) {
     await auditar({ accion: 'login_fallido', detalle: { nomina }, ip: req.ip });
@@ -184,4 +247,49 @@ exports.actualizarPerfil = async (req, res) => {
     data: { programa: programa || req.usuario.programa, alcance: alcance || req.usuario.alcance },
   });
   return res.json({ ok: true, usuario: { programa: usuario.programa, alcance: usuario.alcance } });
+};
+
+exports.solicitarRecuperacionPassword = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return Errores.validacion(res, errors.array().map((e) => ({ campo: e.path, mensaje: e.msg })));
+
+  const nomina = String(req.body.nomina).trim();
+  const usuario = await buscarPorNomina(nomina);
+
+  const mensajeExito = {
+    ok: true,
+    mensaje: 'Hemos notificado a RR.HH. Te contactarán para restablecer tu contraseña.',
+  };
+
+  if (!usuario || !usuario.activo || usuario.rol !== 'empleado') {
+    return res.json(mensajeExito);
+  }
+
+  if (await debeCrearPassword(usuario)) {
+    return Errores.validacion(res, [{
+      campo: 'nomina',
+      mensaje: 'Aún no has creado tu contraseña. Usa la opción «¿Es tu primer acceso?» para configurarla.',
+    }]);
+  }
+
+  const pendiente = await prisma.notificacionRH.findFirst({
+    where: { usuarioId: usuario.id, tipo: 'recuperar_password', estado: 'pendiente' },
+  });
+
+  if (pendiente) {
+    return res.json({ ...mensajeExito, yaEnviada: true });
+  }
+
+  await prisma.notificacionRH.create({
+    data: { usuarioId: usuario.id, tipo: 'recuperar_password' },
+  });
+
+  await auditar({
+    usuarioId: usuario.id,
+    accion: 'solicitud_recuperar_password',
+    detalle: { nomina },
+    ip: req.ip,
+  });
+
+  return res.status(201).json(mensajeExito);
 };

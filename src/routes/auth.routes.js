@@ -15,6 +15,10 @@ router.post('/establecer-password', [
   body('passwordNueva').isLength({ min: 8 }),
 ], ctrl.establecerPassword);
 
+router.post('/solicitar-recuperacion-password', [
+  body('nomina').trim().notEmpty().withMessage('Nómina requerida.'),
+], ctrl.solicitarRecuperacionPassword);
+
 router.post('/login', [
   body('nomina').trim().notEmpty().withMessage('Nómina requerida.'),
   body('password').notEmpty().withMessage('Contraseña requerida.'),

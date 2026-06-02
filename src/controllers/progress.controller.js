@@ -160,13 +160,18 @@ const {
 } = require('../utils/progresoResumen');
 
 exports.resumen = async (req, res) => {
-  const { empleados, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario } = await listarEmpleadosResumen(req);
+  try {
+    const { empleados, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario } = await listarEmpleadosResumen(req);
 
-  const data = empleados.map(({ password, progresos, ...e }) => ({
-    ...e,
-    ...mapEmpleadoResumen({ ...e, progresos }, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario),
-  }));
-  return res.json(data);
+    const data = empleados.map(({ password, progresos, ...e }) => ({
+      ...e,
+      ...mapEmpleadoResumen({ ...e, progresos }, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario),
+    }));
+    return res.json(data);
+  } catch (err) {
+    console.error('Error en progreso/resumen:', err);
+    return Errores.generico(res, 'No se pudo cargar el resumen de progreso.');
+  }
 };
 
 exports.resumenCsv = async (req, res) => {

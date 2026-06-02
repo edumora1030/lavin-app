@@ -17,16 +17,18 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function ingreso(nomina, password) {
     const body = { nomina: String(nomina).trim() };
-    if (password) body.password = password;
+    const pwd = String(password ?? '').trim();
+    if (pwd) body.password = pwd;
     try {
       const data = await api.post('/api/auth/ingreso', body);
       applySession(data.token, data.usuario);
       return data.usuario;
     } catch (err) {
-      if (err.codigo === 'REQUIERE_ESTABLECER_PASSWORD') {
+      if (err.codigo === 'REQUIERE_ESTABLECER_PASSWORD' || err.codigo === 'REQUIERE_PASSWORD') {
         const e = new Error(err.message);
         e.codigo = err.codigo;
         e.nombre = err.nombre;
+        e.rol = err.rol;
         throw e;
       }
       throw err;

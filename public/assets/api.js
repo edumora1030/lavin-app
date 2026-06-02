@@ -13,19 +13,21 @@ const API = {
     if (body) opts.body = isForm ? body : JSON.stringify(body);
 
     const res = await fetch(path, opts);
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : {};
+
     if (res.status === 401) {
-      const data = await res.json().catch(() => ({}));
       if (data.codigo === 'TOKEN_EXPIRADO' || data.codigo === 'TOKEN_INVALIDO') {
         this.token = null; this.user = null;
         if (!location.pathname.endsWith('/login.html')) location.href = '/login.html';
-        throw new Error('No autenticado');
+        throw new Error(data.mensaje || 'No autenticado');
       }
     }
-    const text = await res.text();
-    const data = text ? JSON.parse(text) : {};
     if (!res.ok) {
       const err = new Error(data.mensaje || 'Error en la solicitud');
       err.codigo = data.codigo;
+      if (data.nombre) err.nombre = data.nombre;
+      if (data.rol) err.rol = data.rol;
       throw err;
     }
     return data;

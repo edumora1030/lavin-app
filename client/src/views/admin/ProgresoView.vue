@@ -45,6 +45,9 @@
             <tr v-if="loading">
               <td colspan="7" style="text-align:center; padding:2rem; color:var(--slate-500)">Cargando…</td>
             </tr>
+            <tr v-else-if="error">
+              <td colspan="7" style="text-align:center; padding:2rem; color:#dc2626">{{ error }}</td>
+            </tr>
             <tr v-else-if="!filtrados.length">
               <td colspan="7" style="text-align:center; padding:2rem; color:var(--slate-500)">Sin resultados</td>
             </tr>
@@ -95,99 +98,28 @@
     </div>
 
     <AppModal v-if="evidencia" evidencia @close="cerrarReporte">
-      <div class="evidencia-modal">
-        <header class="evidencia-modal__head">
-          <div>
-            <h2>Hoja de evidencia de inducción</h2>
-            <p class="evidencia-modal__sub">
-              {{ evidencia.empleado.nombre }} · Nómina {{ evidencia.empleado.nomina }} ·
-              {{ rolLabel(evidencia.empleado.programa) }} ·
-              {{ evidencia.empleado.area || 'Sin área' }}
-            </p>
-          </div>
-          <button
-            v-if="evidencia.induccionCompleta"
-            type="button"
-            class="icon-btn icon-btn--primary"
-            :disabled="descargandoPdf === evidencia.empleado.id"
-            title="Descargar PDF de evidencia"
-            aria-label="Descargar PDF de evidencia"
-            @click="descargarEvidencia(evidencia.empleado)"
-          >
-            <FileDown :size="16" stroke-width="2" />
-          </button>
-        </header>
-
-        <div class="evidencia-modal__body">
-          <div class="dashboard-grid evidencia-resumen">
-            <div class="metric-card metric-card--compact">
-              <div class="metric-label">Inducción empresa</div>
-              <div class="metric-value" :class="evidencia.induccionEmpresa.completa ? 'is-ok' : 'is-pending'">
-                {{ evidencia.induccionEmpresa.completados }}/{{ evidencia.induccionEmpresa.total }}
-              </div>
-            </div>
-            <div class="metric-card metric-card--compact">
-              <div class="metric-label">Inducción puesto</div>
-              <div class="metric-value" :class="evidencia.induccionPuesto.completa ? 'is-ok' : 'is-pending'">
-                <template v-if="evidencia.induccionPuesto.habilitada">
-                  {{ evidencia.induccionPuesto.completados }}/{{ evidencia.induccionPuesto.total }}
-                </template>
-                <template v-else>—</template>
-              </div>
-            </div>
-            <div class="metric-card metric-card--compact">
-              <div class="metric-label">Promedio exámenes</div>
-              <div class="metric-value">
-                {{ evidencia.resumen.promedioExamenes != null ? evidencia.resumen.promedioExamenes + '%' : '—' }}
-              </div>
-            </div>
-          </div>
-
-          <section v-if="evidencia.induccionEmpresa.habilitada" class="evidencia-section">
-            <h3>Inducción a la empresa</h3>
-            <EvidenciaChecklist :modulos="evidencia.induccionEmpresa.modulos" />
-          </section>
-
-          <section v-if="evidencia.induccionPuesto.habilitada" class="evidencia-section">
-            <h3>Inducción al puesto</h3>
-            <EvidenciaChecklist :modulos="evidencia.induccionPuesto.modulos" />
-          </section>
-
-          <section v-if="evidencia.evaluacionFinal" class="evidencia-section evidencia-section--final">
-            <h3>Evaluación final del programa</h3>
-            <div class="evidencia-final">
-              <span class="evidencia-check" :class="{ 'is-done': evidencia.evaluacionFinal.completada }">
-                {{ evidencia.evaluacionFinal.completada ? '✓' : '○' }}
-              </span>
-              <div>
-                <strong>{{ evidencia.evaluacionFinal.nombre }}</strong>
-                <p>
-                  {{ evidencia.evaluacionFinal.completada ? 'Encuesta completada' : 'Pendiente' }}
-                  <template v-if="evidencia.evaluacionFinal.fechaCompletado">
-                    · {{ fmtFecha(evidencia.evaluacionFinal.fechaCompletado) }}
-                  </template>
-                </p>
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
+      <EvidenciaSheet
+        :evidencia="evidencia"
+        :downloading="descargandoPdf === evidencia.empleado.id"
+        @download="descargarEvidencia(evidencia.empleado)"
+      />
     </AppModal>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { ClipboardList, Download, Eye, FileDown } from '@lucide/vue';
+import { Download, Eye, FileDown } from '@lucide/vue';
 import { useAppAlert } from '../../composables/useAppAlert';
 import { api, downloadFile } from '../../api';
 const { showAlert } = useAppAlert();
 import AppModal from '../../components/AppModal.vue';
 import AdminFilterBar from '../../components/AdminFilterBar.vue';
-import EvidenciaChecklist from '../../components/EvidenciaChecklist.vue';
+import EvidenciaSheet from '../../components/EvidenciaSheet.vue';
 
 const list = ref([]);
 const loading = ref(true);
+const error = ref('');
 const q = ref('');
 const filtroEstado = ref('');
 const evidencia = ref(null);
@@ -249,15 +181,6 @@ function estadoColor(u) {
   return 'var(--slate-500)';
 }
 
-function fmtFecha(date) {
-  if (!date) return '';
-  return new Date(date).toLocaleDateString('es-MX', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
 async function verReporte(id) {
   const data = await api.get(`/api/usuarios/${id}/evidencia`);
   data.induccionCompleta = esInduccionCompleta(data);
@@ -299,13 +222,22 @@ async function exportarCsv() {
   }
 }
 
-onMounted(async () => {
+onMounted(load);
+
+async function load() {
+  loading.value = true;
+  error.value = '';
   try {
-    list.value = await api.get('/api/progreso/resumen');
+    const data = await api.get('/api/progreso/resumen');
+    list.value = Array.isArray(data) ? data : [];
+  } catch (e) {
+    list.value = [];
+    error.value = e.message || 'No se pudo cargar el progreso.';
+    showAlert({ title: 'Error al cargar', message: error.value, variant: 'error' });
   } finally {
     loading.value = false;
   }
-});
+}
 </script>
 
 <style scoped>
@@ -313,114 +245,5 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-}
-
-.evidencia-modal {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  height: 100%;
-}
-
-.evidencia-modal__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  flex-wrap: wrap;
-  flex-shrink: 0;
-  padding: 1.25rem 1.5rem 1rem;
-  border-bottom: 1px solid var(--slate-200, #e2e8f0);
-}
-
-.evidencia-modal__head h2 {
-  margin: 0;
-  font-size: 1.125rem;
-  line-height: 1.35;
-}
-
-.evidencia-modal__body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 1.25rem 1.5rem 1.5rem;
-}
-
-.evidencia-modal__sub {
-  color: var(--slate-500);
-  margin: 0.35rem 0 0;
-  font-size: 0.875rem;
-}
-
-.evidencia-resumen {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1.25rem;
-}
-
-@media (max-width: 640px) {
-  .evidencia-resumen {
-    grid-template-columns: 1fr;
-  }
-}
-
-.metric-value.is-ok {
-  color: var(--success);
-}
-
-.metric-value.is-pending {
-  color: var(--warning);
-}
-
-.evidencia-section {
-  margin-bottom: 1.25rem;
-}
-
-.evidencia-section:last-child {
-  margin-bottom: 0;
-}
-
-.evidencia-section h3 {
-  margin: 0 0 0.75rem;
-  font-size: 1rem;
-}
-
-.evidencia-section--final {
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--slate-200, #e2e8f0);
-}
-
-.evidencia-final {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background: var(--slate-50, #f8fafc);
-  border-radius: 8px;
-}
-
-.evidencia-final p {
-  margin: 0.25rem 0 0;
-  color: var(--slate-500);
-  font-size: 0.875rem;
-}
-
-.evidencia-check {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 2px solid var(--slate-300, #cbd5e1);
-  color: var(--slate-400);
-  font-size: 0.875rem;
-  flex-shrink: 0;
-}
-
-.evidencia-check.is-done {
-  border-color: var(--success);
-  background: var(--success);
-  color: #fff;
 }
 </style>

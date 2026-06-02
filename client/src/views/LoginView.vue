@@ -17,22 +17,24 @@
             <button type="submit" class="btn btn-gate" :disabled="loading">Continuar</button>
           </form>
           <p style="margin-top:1.25rem; font-size:0.8125rem; color:var(--slate-500); text-align:center;">
-            Personal de RR.HH.: si tu cuenta lo requiere, se pedirá contraseña en el siguiente paso.
+            Personal de RR.HH.: nómina <strong>ADMIN001</strong> y contraseña en el siguiente paso.
           </p>
         </div>
 
         <div v-else-if="step === 'establecer'">
-          <h1 class="gate-title gate-title--reset">REESTABLECE TU CONTRASEÑA</h1>
+          <h1 class="gate-title">Crea tu contraseña</h1>
           <p class="gate-subtitle">
-            Hola{{ nombrePendiente ? `, ${nombrePendiente}` : '' }}. Crea una contraseña personal para acceder con tu nómina.
+            Hola{{ nombrePendiente ? `, ${nombrePendiente}` : '' }}. Esta contraseña es personal y la usarás cada vez que ingreses con tu nómina.
           </p>
           <form @submit.prevent="submitEstablecer">
             <div class="form-group">
               <label for="passwordNueva">Nueva contraseña</label>
               <div class="password-field">
                 <input
+                  ref="passwordNuevaInputRef"
                   id="passwordNueva"
                   v-model="passwordNueva"
+                  name="new-password"
                   :type="showPassword ? 'text' : 'password'"
                   required
                   autocomplete="new-password"
@@ -52,8 +54,10 @@
             <div class="form-group">
               <label for="passwordConfirm">Confirmar contraseña</label>
               <input
+                ref="passwordConfirmInputRef"
                 id="passwordConfirm"
                 v-model="passwordConfirm"
+                name="confirm-password"
                 :type="showPassword ? 'text' : 'password'"
                 required
                 autocomplete="new-password"
@@ -77,8 +81,10 @@
               <label for="password">Contraseña</label>
               <div class="password-field">
                 <input
+                  ref="passwordInputRef"
                   id="password"
                   v-model="password"
+                  name="password"
                   :type="showPassword ? 'text' : 'password'"
                   required
                   autocomplete="current-password"
@@ -95,8 +101,28 @@
               </div>
             </div>
             <p v-if="error" class="form-error" style="display:block; margin-bottom:1rem;">{{ error }}</p>
+            <p v-if="recuperacionMsg" class="gate-hint gate-hint--success">{{ recuperacionMsg }}</p>
             <button type="submit" class="btn btn-gate" :disabled="loading">Entrar</button>
-            <button type="button" class="btn-text" style="display:block; margin:1rem auto 0;" @click="volverNomina">
+            <button
+              v-if="rolPendiente === 'empleado'"
+              type="button"
+              class="btn-text"
+              style="display:block; margin:1rem auto 0;"
+              :disabled="recuperacionLoading"
+              @click="solicitarRecuperacion"
+            >
+              {{ recuperacionLoading ? 'Enviando…' : '¿Olvidaste tu contraseña?' }}
+            </button>
+            <button
+              v-if="rolPendiente === 'empleado'"
+              type="button"
+              class="btn-text"
+              style="display:block; margin:0.5rem auto 0;"
+              @click="irCrearPassword"
+            >
+              ¿Es tu primer acceso? Crea tu contraseña
+            </button>
+            <button type="button" class="btn-text" style="display:block; margin:0.5rem auto 0;" @click="volverNomina">
               ← Cambiar nómina
             </button>
           </form>
@@ -110,6 +136,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import { api } from '../api';
 import LogoBlock from '../components/LogoBlock.vue';
 import { Eye, EyeOff } from '@lucide/vue';
 
@@ -121,6 +148,9 @@ const nomina = ref('');
 const password = ref('');
 const passwordNueva = ref('');
 const passwordConfirm = ref('');
+const passwordInputRef = ref(null);
+const passwordNuevaInputRef = ref(null);
+const passwordConfirmInputRef = ref(null);
 const showPassword = ref(false);
 const nominaInvalid = ref(false);
 const error = ref('');
@@ -128,6 +158,8 @@ const loading = ref(false);
 const nominaPendiente = ref('');
 const nombrePendiente = ref('');
 const rolPendiente = ref('');
+const recuperacionMsg = ref('');
+const recuperacionLoading = ref(false);
 
 const tituloPassword = computed(() =>
   rolPendiente.value === 'empleado' ? 'Ingresa tu contraseña' : 'Contraseña de administrador'
@@ -142,6 +174,7 @@ const subtituloPassword = computed(() =>
 function volverNomina() {
   step.value = 'nomina';
   error.value = '';
+  recuperacionMsg.value = '';
   password.value = '';
   passwordNueva.value = '';
   passwordConfirm.value = '';
@@ -155,14 +188,16 @@ async function submitNomina() {
   nominaPendiente.value = nomina.value.trim();
   loading.value = true;
   try {
-    const u = await auth.ingreso(nominaPendiente.value);
+    await auth.ingreso(nominaPendiente.value);
     await router.push(auth.homeRoute());
   } catch (e) {
     if (e.codigo === 'REQUIERE_ESTABLECER_PASSWORD') {
       nombrePendiente.value = e.nombre || '';
+      rolPendiente.value = 'empleado';
       step.value = 'establecer';
     } else if (e.codigo === 'REQUIERE_PASSWORD') {
       rolPendiente.value = e.rol || 'empleado';
+      recuperacionMsg.value = '';
       step.value = 'password';
     } else {
       error.value = e.message;
@@ -172,15 +207,38 @@ async function submitNomina() {
   }
 }
 
+function leerInput(refEl, modelValue) {
+  const fromDom = refEl.value?.value?.trim();
+  const fromModel = String(modelValue ?? '').trim();
+  return fromDom || fromModel;
+}
+
+function irCrearPassword() {
+  error.value = '';
+  password.value = '';
+  passwordNueva.value = '';
+  passwordConfirm.value = '';
+  step.value = 'establecer';
+}
+
 async function submitEstablecer() {
   error.value = '';
-  if (passwordNueva.value !== passwordConfirm.value) {
+  const nueva = leerInput(passwordNuevaInputRef, passwordNueva.value);
+  const confirmacion = leerInput(passwordConfirmInputRef, passwordConfirm.value);
+  passwordNueva.value = nueva;
+  passwordConfirm.value = confirmacion;
+
+  if (!nueva) {
+    error.value = 'Ingresa tu nueva contraseña.';
+    return;
+  }
+  if (nueva !== confirmacion) {
     error.value = 'Las contraseñas no coinciden.';
     return;
   }
   loading.value = true;
   try {
-    await auth.establecerPassword(nominaPendiente.value, passwordNueva.value);
+    await auth.establecerPassword(nominaPendiente.value, nueva);
     await router.push(auth.homeRoute());
   } catch (e) {
     error.value = e.message;
@@ -189,14 +247,45 @@ async function submitEstablecer() {
   }
 }
 
-async function submitPassword() {
+async function solicitarRecuperacion() {
   error.value = '';
-  loading.value = true;
+  recuperacionMsg.value = '';
+  recuperacionLoading.value = true;
   try {
-    await auth.ingreso(nominaPendiente.value, password.value);
-    await router.push(auth.homeRoute());
+    const data = await api.post('/api/auth/solicitar-recuperacion-password', {
+      nomina: nominaPendiente.value,
+    });
+    recuperacionMsg.value = data.mensaje;
   } catch (e) {
     error.value = e.message;
+  } finally {
+    recuperacionLoading.value = false;
+  }
+}
+
+async function submitPassword() {
+  error.value = '';
+  const pwd = leerInput(passwordInputRef, password.value);
+  password.value = pwd;
+
+  if (!pwd) {
+    error.value = 'Ingresa tu contraseña.';
+    return;
+  }
+
+  loading.value = true;
+  try {
+    await auth.ingreso(nominaPendiente.value, pwd);
+    await router.push(auth.homeRoute());
+  } catch (e) {
+    if (e.codigo === 'REQUIERE_ESTABLECER_PASSWORD') {
+      nombrePendiente.value = e.nombre || '';
+      rolPendiente.value = 'empleado';
+      step.value = 'establecer';
+      error.value = '';
+    } else {
+      error.value = e.message;
+    }
   } finally {
     loading.value = false;
   }
@@ -204,15 +293,14 @@ async function submitPassword() {
 </script>
 
 <style scoped>
-.gate-title--reset {
-  font-size: 1.35rem;
-  letter-spacing: 0.04em;
-  color: var(--blue-900, #0f2744);
-}
-
 .gate-hint {
   margin: -0.25rem 0 1rem;
   font-size: 0.8125rem;
   color: var(--slate-500);
+}
+
+.gate-hint--success {
+  color: var(--success, #15803d);
+  margin-bottom: 1rem;
 }
 </style>

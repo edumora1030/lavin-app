@@ -82,6 +82,16 @@
                     <Pencil :size="15" stroke-width="2" />
                   </button>
                   <button
+                    v-if="u.rol === 'empleado'"
+                    type="button"
+                    class="icon-btn"
+                    title="Restablecer contraseña"
+                    aria-label="Restablecer contraseña"
+                    @click="restablecerPassword(u)"
+                  >
+                    <KeyRound :size="15" stroke-width="2" />
+                  </button>
+                  <button
                     v-if="u.activo"
                     type="button"
                     class="icon-btn icon-btn--danger"
@@ -177,7 +187,7 @@
 
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
-import { Pencil, Ban, CircleCheck } from '@lucide/vue';
+import { Pencil, Ban, CircleCheck, KeyRound } from '@lucide/vue';
 import { useAppAlert } from '../../composables/useAppAlert';
 import { useAppConfirm } from '../../composables/useAppConfirm';
 import { api } from '../../api';
@@ -308,6 +318,12 @@ async function guardar() {
     if (u.rol === 'admin' || u.rol === 'supervisor') {
       const ult4 = String(u.nomina).slice(-4).padStart(4, '0');
       showAlert({ title: 'Usuario creado', message: `Contraseña inicial: ${ult4}Lavin2024`, variant: 'info' });
+    } else {
+      showAlert({
+        title: 'Empleado creado',
+        message: 'El colaborador creará su contraseña al ingresar su nómina por primera vez.',
+        variant: 'info',
+      });
     }
   }
   modal.value = null;
@@ -324,6 +340,22 @@ async function toggleActivo(u, activo) {
   if (!ok) return;
   await api.put(`/api/usuarios/${u.id}`, { activo });
   await load();
+}
+
+async function restablecerPassword(u) {
+  const ok = await showConfirm({
+    title: '¿Restablecer contraseña?',
+    message: `${u.nombre} podrá crear una nueva contraseña al ingresar su nómina.`,
+    variant: 'info',
+    confirmLabel: 'Restablecer',
+  });
+  if (!ok) return;
+  await api.post(`/api/usuarios/${u.id}/reset-password`, {});
+  showAlert({
+    title: 'Contraseña restablecida',
+    message: 'El colaborador debe ingresar su nómina y crear una nueva contraseña.',
+    variant: 'info',
+  });
 }
 
 onMounted(async () => {

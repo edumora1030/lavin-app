@@ -52,38 +52,32 @@
       </section>
 
       <!-- GENERAL -->
-      <div v-if="activeTab === 'general'" class="db-grid">
-        <article class="db-card db-card--wide">
+      <div v-if="activeTab === 'general'" class="db-grid db-grid--uniform">
+        <article class="db-card">
           <div class="db-card__head">
-            <h3>Avance por módulo</h3>
-            <span class="db-card__hint">% de colaboradores que completaron cada módulo</span>
+            <h3>Estado global</h3>
+            <span class="db-card__hint">Distribución de colaboradores</span>
           </div>
-          <div class="db-chart db-chart--line">
-            <Line v-if="modulosLineChart" :data="modulosLineChart" :options="lineChartOptions" />
-            <p v-else class="db-empty">Sin datos de módulos</p>
+          <div class="db-card__body">
+            <div class="db-chart db-chart--donut">
+              <Doughnut v-if="estadoGlobalChart" :data="estadoGlobalChart" :options="donutOptions" />
+            </div>
+            <div class="db-donut-legend">
+              <div v-for="item in estadoGlobalLegend" :key="item.label" class="db-donut-legend__item">
+                <span class="db-donut-legend__dot" :style="{ background: item.color }" />
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+              </div>
+            </div>
           </div>
         </article>
 
         <article class="db-card">
           <div class="db-card__head">
-            <h3>Estado global</h3>
-          </div>
-          <div class="db-chart db-chart--donut">
-            <Doughnut v-if="estadoGlobalChart" :data="estadoGlobalChart" :options="donutOptions" />
-          </div>
-          <div class="db-donut-legend">
-            <div v-for="item in estadoGlobalLegend" :key="item.label" class="db-donut-legend__item">
-              <span class="db-donut-legend__dot" :style="{ background: item.color }" />
-              <span>{{ item.label }}</span>
-              <strong>{{ item.value }}</strong>
-            </div>
-          </div>
-        </article>
-
-        <article class="db-card db-card--gauge">
-          <div class="db-card__head">
             <h3>Inducción completada</h3>
+            <span class="db-card__hint">% con programa terminado</span>
           </div>
+          <div class="db-card__body db-card__body--center">
           <div class="db-gauge-wrap">
             <div class="db-gauge" :style="{ '--pct': data.pctCompletado }">
               <svg viewBox="0 0 200 110" class="db-gauge__svg" aria-hidden="true">
@@ -120,76 +114,83 @@
               </div>
             </div>
           </div>
-        </article>
-
-        <article class="db-card db-card--bars">
-          <div class="db-card__head">
-            <h3>Progreso por área</h3>
-            <span class="db-card__hint">% con inducción completa</span>
           </div>
-          <ul v-if="areaBars.length" class="db-area-list">
-            <li v-for="a in areaBars" :key="a.nombre" class="db-area-row">
-              <div class="db-area-row__meta">
-                <span class="db-area-row__name">{{ a.nombre }}</span>
-                <span class="db-area-row__pct">{{ a.pct }}%</span>
-              </div>
-              <div class="db-area-row__track">
-                <div class="db-area-row__fill" :style="{ width: `${a.pct}%` }" />
-              </div>
-              <span class="db-area-row__count">{{ a.completados }}/{{ a.total }}</span>
-            </li>
-          </ul>
-          <p v-else class="db-empty">Sin áreas registradas</p>
         </article>
 
         <article class="db-card">
           <div class="db-card__head">
             <h3>Comparativa por programa</h3>
+            <span class="db-card__hint">Operativo vs administrativo</span>
           </div>
-          <div class="db-chart db-chart--radar">
-            <Radar v-if="programaRadarChart" :data="programaRadarChart" :options="radarChartOptions" />
+          <div class="db-card__body">
+            <div class="db-chart db-chart--radar">
+              <Radar v-if="programaRadarChart" :data="programaRadarChart" :options="radarChartOptions" />
+            </div>
           </div>
         </article>
 
-        <article class="db-card">
+        <article class="db-card db-card--span-12">
           <div class="db-card__head">
             <h3>Operativos vs administrativos</h3>
+            <span class="db-card__hint">Conteo por estado</span>
           </div>
-          <div class="db-chart db-chart--bar">
-            <Bar v-if="comparativaChart" :data="comparativaChart" :options="comparativaBarOptions" />
+          <div class="db-card__body">
+            <div class="db-chart db-chart--bar">
+              <Bar v-if="comparativaChart" :data="comparativaChart" :options="comparativaBarOptions" />
+            </div>
+          </div>
+        </article>
+
+        <article class="db-card db-card--full">
+          <div class="db-card__head">
+            <h3>Progreso por área</h3>
+            <span class="db-card__hint">% con inducción completa</span>
+          </div>
+          <div class="db-card__body">
+            <ul v-if="areaBars.length" class="db-area-list db-area-list--grid">
+              <li v-for="a in areaBars" :key="a.nombre" class="db-area-row">
+                <div class="db-area-row__meta">
+                  <span class="db-area-row__name">{{ a.nombre }}</span>
+                  <span class="db-area-row__pct">{{ a.pct }}%</span>
+                </div>
+                <div class="db-area-row__track">
+                  <div class="db-area-row__fill" :style="{ width: `${a.pct}%` }" />
+                </div>
+                <span class="db-area-row__count">{{ a.completados }}/{{ a.total }}</span>
+              </li>
+            </ul>
+            <p v-else class="db-empty">Sin áreas registradas</p>
           </div>
         </article>
       </div>
 
       <!-- OPERATIVO / ADMINISTRATIVO -->
-      <div v-else class="db-grid db-grid--program">
-        <article class="db-card db-card--wide">
+      <div v-else class="db-grid db-grid--uniform">
+        <article class="db-card">
           <div class="db-card__head">
-            <h3>Avance por módulo — {{ programaLabel }}</h3>
+            <h3>Estado de inducción</h3>
+            <span class="db-card__hint">{{ programaLabel }}</span>
           </div>
-          <div class="db-chart db-chart--tall">
-            <Bar
-              v-if="modulosBarChart"
-              :data="modulosBarChart"
-              :options="modulosBarOptions"
-            />
-            <p v-else class="db-empty">Sin módulos para este programa</p>
+          <div class="db-card__body">
+            <div class="db-chart db-chart--donut">
+              <Doughnut v-if="estadoProgramaChart" :data="estadoProgramaChart" :options="donutOptions" />
+            </div>
+            <div v-if="programaDistrib.length" class="db-donut-legend">
+              <div v-for="item in programaDistrib" :key="item.label" class="db-donut-legend__item">
+                <span class="db-donut-legend__dot" :class="item.dotClass" />
+                <span>{{ item.label }}</span>
+                <strong>{{ item.count }}</strong>
+              </div>
+            </div>
           </div>
         </article>
 
         <article class="db-card">
           <div class="db-card__head">
-            <h3>Estado de inducción</h3>
+            <h3>Completados</h3>
+            <span class="db-card__hint">{{ programaLabel }}</span>
           </div>
-          <div class="db-chart db-chart--donut">
-            <Doughnut v-if="estadoProgramaChart" :data="estadoProgramaChart" :options="donutOptions" />
-          </div>
-        </article>
-
-        <article class="db-card db-card--gauge">
-          <div class="db-card__head">
-            <h3>Completados — {{ programaLabel }}</h3>
-          </div>
+          <div class="db-card__body db-card__body--center">
           <div class="db-gauge-wrap">
             <div class="db-gauge" :style="{ '--pct': programaPct }">
               <svg viewBox="0 0 200 110" class="db-gauge__svg" aria-hidden="true">
@@ -224,24 +225,28 @@
               </div>
             </div>
           </div>
+          </div>
         </article>
 
-        <article class="db-card db-card--bars">
+        <article class="db-card">
           <div class="db-card__head">
             <h3>Distribución del programa</h3>
+            <span class="db-card__hint">% por estado de avance</span>
           </div>
-          <ul class="db-area-list">
-            <li v-for="row in programaDistrib" :key="row.label" class="db-area-row">
-              <div class="db-area-row__meta">
-                <span class="db-area-row__name">{{ row.label }}</span>
-                <span class="db-area-row__pct">{{ row.pct }}%</span>
-              </div>
-              <div class="db-area-row__track">
-                <div class="db-area-row__fill" :class="row.tone" :style="{ width: `${row.pct}%` }" />
-              </div>
-              <span class="db-area-row__count">{{ row.count }}</span>
-            </li>
-          </ul>
+          <div class="db-card__body">
+            <ul class="db-area-list db-area-list--stacked">
+              <li v-for="row in programaDistrib" :key="row.label" class="db-area-row">
+                <div class="db-area-row__meta">
+                  <span class="db-area-row__name">{{ row.label }}</span>
+                  <span class="db-area-row__pct">{{ row.pct }}%</span>
+                </div>
+                <div class="db-area-row__track">
+                  <div class="db-area-row__fill" :class="row.tone" :style="{ width: `${row.pct}%` }" />
+                </div>
+                <span class="db-area-row__count">{{ row.count }} colaboradores</span>
+              </li>
+            </ul>
+          </div>
         </article>
       </div>
     </template>
@@ -250,13 +255,12 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { Bar, Doughnut, Line, Radar } from 'vue-chartjs';
+import { Bar, Doughnut, Radar } from 'vue-chartjs';
 import {
   Users,
   CircleCheck,
   Clock,
   CircleHelp,
-  ClipboardList,
   Bell,
   Globe,
   HardHat,
@@ -269,7 +273,6 @@ import {
   COLORS,
   doughnutOptionsCompact,
   barOptions,
-  lineOptions,
   radarOptions,
 } from '../../utils/chartTheme';
 
@@ -290,7 +293,6 @@ const data = ref(null);
 const error = ref('');
 
 const donutOptions = doughnutOptionsCompact();
-const lineChartOptions = lineOptions();
 const radarChartOptions = radarOptions();
 const comparativaBarOptions = {
   ...barOptions('', false),
@@ -406,35 +408,6 @@ const estadoProgramaChart = computed(() =>
   activeTab.value !== 'general' ? estadoChartFor(activeTab.value) : null
 );
 
-const modulosLineChart = computed(() => {
-  const items = data.value?.progresoPorModulo;
-  if (!items?.length) return null;
-  return {
-    labels: items.map((m) => truncate(m.nombre, 14)),
-    datasets: [
-      {
-        label: 'Avance global',
-        data: items.map((m) => m.pct),
-        borderColor: COLORS.brandMid,
-        backgroundColor: 'transparent',
-        tension: 0.35,
-        pointRadius: 4,
-        pointBackgroundColor: COLORS.brand,
-        borderWidth: 2.5,
-      },
-      {
-        label: 'Meta',
-        data: items.map(() => 100),
-        borderColor: COLORS.accent,
-        borderDash: [6, 4],
-        tension: 0.35,
-        pointRadius: 0,
-        borderWidth: 2,
-      },
-    ],
-  };
-});
-
 const programaRadarChart = computed(() => {
   if (!data.value?.porPrograma) return null;
   return {
@@ -486,60 +459,16 @@ const areaBars = computed(() => {
     .slice(0, 8);
 });
 
-const modulosBarChart = computed(() => {
-  const items = data.value?.progresoPorModuloPorPrograma?.[activeTab.value];
-  if (!items?.length) return null;
-  return {
-    labels: items.map((m) => `${m.orden}. ${truncate(m.nombre, 22)}`),
-    datasets: [{
-      label: '% completado',
-      data: items.map((m) => m.pct),
-      backgroundColor: COLORS.brandLight,
-      borderRadius: 8,
-      borderSkipped: false,
-    }],
-  };
-});
-
-const modulosBarOptions = computed(() => {
-  const total = programaMetrics.value?.total ?? 0;
-  const programa = activeTab.value;
-  return {
-    ...barOptions('', true),
-    scales: {
-      x: { max: 100, grid: { color: COLORS.grid }, ticks: { callback: (v) => `${v}%`, color: COLORS.muted, font: { size: 11 } } },
-      y: { grid: { display: false }, ticks: { color: COLORS.muted, font: { size: 11 } } },
-    },
-    plugins: {
-      ...barOptions('').plugins,
-      tooltip: {
-        ...barOptions('').plugins.tooltip,
-        callbacks: {
-          label: (ctx) => {
-            const items = data.value.progresoPorModuloPorPrograma[programa];
-            const m = items[ctx.dataIndex];
-            return `${m.completados}/${total} (${m.pct}%)`;
-          },
-        },
-      },
-    },
-  };
-});
-
 const programaDistrib = computed(() => {
   const m = programaMetrics.value;
   if (!m?.total) return [];
   const t = m.total;
   return [
-    { label: 'Completados', count: m.completados, pct: Math.round((m.completados / t) * 100), tone: '' },
-    { label: 'En curso', count: m.enCurso, pct: Math.round((m.enCurso / t) * 100), tone: 'db-area-row__fill--warn' },
-    { label: 'Sin iniciar', count: m.sinIniciar, pct: Math.round((m.sinIniciar / t) * 100), tone: 'db-area-row__fill--muted' },
+    { label: 'Completados', count: m.completados, pct: Math.round((m.completados / t) * 100), tone: '', dotClass: 'db-donut-legend__dot--brand' },
+    { label: 'En curso', count: m.enCurso, pct: Math.round((m.enCurso / t) * 100), tone: 'db-area-row__fill--warn', dotClass: 'db-donut-legend__dot--warn' },
+    { label: 'Sin iniciar', count: m.sinIniciar, pct: Math.round((m.sinIniciar / t) * 100), tone: 'db-area-row__fill--muted', dotClass: 'db-donut-legend__dot--muted' },
   ];
 });
-
-function truncate(str, len) {
-  return str.length > len ? `${str.slice(0, len)}…` : str;
-}
 
 onMounted(async () => {
   try {
@@ -769,10 +698,27 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   gap: 1rem;
+  align-items: stretch;
+}
+
+.db-grid--uniform > .db-card {
+  grid-column: span 4;
+  display: flex;
+  flex-direction: column;
+  min-height: 380px;
+}
+
+.db-grid--uniform > .db-card--span-12 {
+  grid-column: span 12;
+  min-height: 300px;
+}
+
+.db-grid--uniform > .db-card--full {
+  grid-column: span 12;
+  min-height: auto;
 }
 
 .db-card {
-  grid-column: span 4;
   background: var(--db-card);
   border: 1px solid var(--db-border);
   border-radius: 16px;
@@ -780,29 +726,20 @@ onMounted(async () => {
   box-shadow: var(--db-shadow);
 }
 
-.db-card--wide {
-  grid-column: span 8;
-}
-
-.db-card--gauge {
-  grid-column: span 4;
-}
-
-.db-card--bars {
-  grid-column: span 6;
-}
-
-.db-grid--program .db-card--wide {
-  grid-column: span 8;
-}
-
-.db-grid--program .db-card--gauge,
-.db-grid--program .db-card:not(.db-card--wide):not(.db-card--bars) {
-  grid-column: span 4;
-}
-
 .db-card__head {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
+  flex-shrink: 0;
+}
+
+.db-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.db-card__body--center {
+  justify-content: center;
 }
 
 .db-card__head h3 {
@@ -822,23 +759,16 @@ onMounted(async () => {
 .db-chart {
   position: relative;
   width: 100%;
+  flex: 1;
+  min-height: 220px;
+  max-height: 240px;
 }
 
-.db-chart--line {
-  height: 280px;
-}
-
-.db-chart--donut {
-  height: 200px;
-}
-
+.db-chart--donut,
 .db-chart--radar,
 .db-chart--bar {
-  height: 260px;
-}
-
-.db-chart--tall {
-  height: 320px;
+  height: 220px;
+  flex: none;
 }
 
 .db-empty {
@@ -877,6 +807,19 @@ onMounted(async () => {
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
+  background: var(--db-brand-mid);
+}
+
+.db-donut-legend__dot--brand {
+  background: var(--db-brand);
+}
+
+.db-donut-legend__dot--warn {
+  background: #f59e0b;
+}
+
+.db-donut-legend__dot--muted {
+  background: #cbd5e1;
 }
 
 /* Gauge */
@@ -965,6 +908,24 @@ onMounted(async () => {
   gap: 1rem;
 }
 
+.db-area-list--grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem 1.5rem;
+}
+
+.db-area-list--stacked {
+  flex: 1;
+  justify-content: center;
+  gap: 1.25rem;
+}
+
+@media (min-width: 900px) {
+  .db-area-list--grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 .db-area-row__meta {
   display: flex;
   justify-content: space-between;
@@ -1017,11 +978,14 @@ onMounted(async () => {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .db-card,
-  .db-card--wide,
-  .db-card--gauge,
-  .db-card--bars {
+  .db-grid--uniform > .db-card,
+  .db-grid--uniform > .db-card--full,
+  .db-grid--uniform > .db-card--span-12 {
     grid-column: span 6;
+  }
+
+  .db-area-list--grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -1030,11 +994,15 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
-  .db-card,
-  .db-card--wide,
-  .db-card--gauge,
-  .db-card--bars {
+  .db-grid--uniform > .db-card,
+  .db-grid--uniform > .db-card--full,
+  .db-grid--uniform > .db-card--span-12 {
     grid-column: span 12;
+    min-height: auto;
+  }
+
+  .db-area-list--grid {
+    grid-template-columns: 1fr;
   }
 
   .db-header {

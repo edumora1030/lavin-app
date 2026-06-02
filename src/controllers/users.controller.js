@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const prisma = require('../config/db');
 const { Errores } = require('../utils/errores');
 const { auditar } = require('../utils/auditoria');
@@ -39,13 +40,19 @@ exports.crear = async (req, res) => {
   const existe = await prisma.usuario.findUnique({ where: { nomina } });
   if (existe) return Errores.validacion(res, [{ campo: 'nomina', mensaje: 'La nómina ya está registrada.' }]);
 
-  const hash = await bcrypt.hash(passwordInicial(nomina), 10);
+  const esEmpleado = rol === 'empleado';
+  const passwordPlano = esEmpleado ? null : passwordInicial(nomina);
+  const hash = esEmpleado
+    ? await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10)
+    : await bcrypt.hash(passwordPlano, 10);
   const usuario = await prisma.usuario.create({
     data: {
       nombre, nomina, email, rol, programa, alcance, area, areaId,
       induccionEmpresaHabilitada: induccionEmpresaHabilitada ?? false,
       induccionPuestoHabilitada: induccionPuestoHabilitada ?? false,
-      password: hash, creadoPor: req.usuario.id, primerLogin: true,
+      password: hash,
+      creadoPor: req.usuario.id,
+      primerLogin: esEmpleado,
     },
   });
 

@@ -50,6 +50,7 @@ enum EstadoDuda {
 enum TipoNotificacionRH {
   recorrido_planta
   sistemas
+  recuperar_password
 }
 
 enum EstadoNotificacionRH {
