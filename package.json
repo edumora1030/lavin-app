@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "concurrently -n api,vue -c blue,green \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "nodemon src/server.js",
+    "dev:server": "NODE_ENV=development nodemon src/server.js",
     "dev:client": "npm run dev --prefix client",
     "build:client": "npm ci --prefix client && npm run build --prefix client",
     "seed": "node scripts/seed.js",

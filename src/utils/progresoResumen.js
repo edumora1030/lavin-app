@@ -16,22 +16,35 @@ function modulosParaPrograma(modulos, programa) {
   return modulos.filter((m) => m.programa === 'ambos' || m.programa === programa);
 }
 
-function modulosRequeridos(empleado, modulosEmpresa, modulosPuesto) {
-  const ids = [];
+function contarRequeridos(empleado, modulosEmpresa, checklistPuestoTotal) {
+  let total = 0;
   if (empleado.induccionEmpresaHabilitada) {
-    ids.push(...modulosParaPrograma(modulosEmpresa, empleado.programa).map((m) => m.id));
+    total += modulosParaPrograma(modulosEmpresa, empleado.programa).length;
   }
   if (empleado.induccionPuestoHabilitada) {
-    ids.push(...modulosParaPrograma(modulosPuesto, empleado.programa).map((m) => m.id));
+    total += checklistPuestoTotal;
   }
-  return ids;
+  return total;
 }
 
-function empleadoInduccionCompleta(empleado, modulosEmpresa, modulosPuesto) {
-  const requeridos = modulosRequeridos(empleado, modulosEmpresa, modulosPuesto);
-  if (!requeridos.length) return false;
-  const completados = new Set(empleado.progresos.map((p) => p.moduloId));
-  return requeridos.every((id) => completados.has(id));
+function contarCompletados(empleado, modulosEmpresa, checklistCompletados, checklistPuestoTotal) {
+  const completadosModulos = new Set(empleado.progresos.map((p) => p.moduloId));
+  let done = 0;
+  if (empleado.induccionEmpresaHabilitada) {
+    done += modulosParaPrograma(modulosEmpresa, empleado.programa)
+      .filter((m) => completadosModulos.has(m.id)).length;
+  }
+  if (empleado.induccionPuestoHabilitada && checklistPuestoTotal > 0) {
+    done += checklistCompletados;
+  }
+  return done;
+}
+
+function empleadoInduccionCompleta(empleado, modulosEmpresa, checklistCompletados, checklistPuestoTotal) {
+  const total = contarRequeridos(empleado, modulosEmpresa, checklistPuestoTotal);
+  if (!total) return false;
+  const done = contarCompletados(empleado, modulosEmpresa, checklistCompletados, checklistPuestoTotal);
+  return done >= total;
 }
 
 async function listarEmpleadosResumen(req) {
@@ -40,7 +53,7 @@ async function listarEmpleadosResumen(req) {
     userWhere.areaId = req.usuario.areaId;
   }
 
-  const [empleados, modulosEmpresa, modulosPuesto] = await Promise.all([
+  const [empleados, modulosEmpresa, checklistPuestoTotal, progresosChecklist] = await Promise.all([
     prisma.usuario.findMany({
       where: userWhere,
       include: {
@@ -53,28 +66,40 @@ async function listarEmpleadosResumen(req) {
       where: { activo: true, slug: { in: SLUGS_EMPRESA }, alcance: { in: ['empresa', 'ambos'] } },
       select: { id: true, programa: true },
     }),
-    prisma.modulo.findMany({
-      where: {
-        activo: true,
-        slug: { notIn: SLUGS_EMPRESA },
-        alcance: { in: ['puesto', 'ambos'] },
-      },
-      select: { id: true, programa: true },
+    prisma.checklistPuestoItem.count({ where: { activo: true } }),
+    prisma.checklistPuestoProgreso.findMany({
+      where: { completado: true },
+      select: { usuarioId: true, itemId: true },
     }),
   ]);
 
-  return { empleados, modulosEmpresa, modulosPuesto };
+  const checklistPorUsuario = new Map();
+  for (const p of progresosChecklist) {
+    if (!checklistPorUsuario.has(p.usuarioId)) checklistPorUsuario.set(p.usuarioId, new Set());
+    checklistPorUsuario.get(p.usuarioId).add(p.itemId);
+  }
+
+  return { empleados, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario };
 }
 
-function mapEmpleadoResumen(empleado, modulosEmpresa, modulosPuesto) {
-  const requeridos = modulosRequeridos(empleado, modulosEmpresa, modulosPuesto);
-  const completadosSet = new Set(empleado.progresos.map((p) => p.moduloId));
-  const modulosCompletados = requeridos.filter((id) => completadosSet.has(id)).length;
-  const totalModulos = requeridos.length;
+function mapEmpleadoResumen(empleado, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario) {
+  const checklistCompletados = checklistPorUsuario.get(empleado.id)?.size ?? 0;
+  const totalModulos = contarRequeridos(empleado, modulosEmpresa, checklistPuestoTotal);
+  const modulosCompletados = contarCompletados(
+    empleado,
+    modulosEmpresa,
+    checklistCompletados,
+    checklistPuestoTotal
+  );
   const progreso_pct = totalModulos
     ? Math.round((modulosCompletados / totalModulos) * 100)
     : 0;
-  const induccionCompleta = empleadoInduccionCompleta(empleado, modulosEmpresa, modulosPuesto);
+  const induccionCompleta = empleadoInduccionCompleta(
+    empleado,
+    modulosEmpresa,
+    checklistCompletados,
+    checklistPuestoTotal
+  );
 
   return {
     modulosCompletados,
@@ -85,9 +110,9 @@ function mapEmpleadoResumen(empleado, modulosEmpresa, modulosPuesto) {
   };
 }
 
-function mapEmpleadosResumen(empleados, modulosEmpresa, modulosPuesto) {
+function mapEmpleadosResumen(empleados, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario) {
   return empleados.map((e) => {
-    const stats = mapEmpleadoResumen(e, modulosEmpresa, modulosPuesto);
+    const stats = mapEmpleadoResumen(e, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario);
     return {
       nomina: e.nomina,
       nombre: e.nombre,

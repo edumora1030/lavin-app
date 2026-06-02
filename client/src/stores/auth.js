@@ -18,7 +18,26 @@ export const useAuthStore = defineStore('auth', () => {
   async function ingreso(nomina, password) {
     const body = { nomina: String(nomina).trim() };
     if (password) body.password = password;
-    const data = await api.post('/api/auth/ingreso', body);
+    try {
+      const data = await api.post('/api/auth/ingreso', body);
+      applySession(data.token, data.usuario);
+      return data.usuario;
+    } catch (err) {
+      if (err.codigo === 'REQUIERE_ESTABLECER_PASSWORD') {
+        const e = new Error(err.message);
+        e.codigo = err.codigo;
+        e.nombre = err.nombre;
+        throw e;
+      }
+      throw err;
+    }
+  }
+
+  async function establecerPassword(nomina, passwordNueva) {
+    const data = await api.post('/api/auth/establecer-password', {
+      nomina: String(nomina).trim(),
+      passwordNueva,
+    });
     applySession(data.token, data.usuario);
     return data.usuario;
   }
@@ -54,6 +73,7 @@ export const useAuthStore = defineStore('auth', () => {
     rol,
     applySession,
     ingreso,
+    establecerPassword,
     fetchMe,
     updatePerfil,
     logout,

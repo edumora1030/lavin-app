@@ -33,6 +33,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOSt
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/usuarios', require('./routes/users.routes'));
 app.use('/api/modulos', require('./routes/modules.routes'));
+app.use('/api/checklist-puesto', require('./routes/checklistPuesto.routes'));
 app.use('/api/progreso', require('./routes/progress.routes'));
 app.use('/api/examenes', require('./routes/exams.routes'));
 app.use('/api/videos', require('./routes/videos.routes'));
@@ -42,14 +43,24 @@ app.use('/api/dudas', require('./routes/dudas.routes'));
 app.use('/api/encuesta', require('./routes/encuesta.routes'));
 app.use('/api/notificaciones', require('./routes/notificaciones.routes'));
 
-// Estáticos: Vue build (dist) o legacy public/
+// Estáticos: en desarrollo usar Vite (:5173); en producción servir dist/
 const publicDir = path.join(__dirname, '..', 'public');
 const distDir = path.join(publicDir, 'dist');
 const useDist = fs.existsSync(path.join(distDir, 'index.html'));
+const isDev = process.env.NODE_ENV !== 'production';
+const devViteUrl = process.env.DEV_VITE_URL || 'http://localhost:5173';
 
 app.use('/assets', express.static(path.join(publicDir, 'assets')));
 app.use('/uploads', express.static(process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads')));
-if (useDist) {
+
+if (isDev) {
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') return next();
+    if (req.path.startsWith('/api/')) return next();
+    if (req.path.startsWith('/uploads/')) return next();
+    return res.redirect(302, `${devViteUrl}${req.originalUrl}`);
+  });
+} else if (useDist) {
   app.use(express.static(distDir, {
     setHeaders(res, filePath) {
       if (/\.(html|js|css)$/.test(filePath)) {
@@ -57,22 +68,24 @@ if (useDist) {
       }
     },
   }));
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') return next();
+    if (req.path.startsWith('/api/')) return next();
+    if (req.path.startsWith('/uploads/')) return next();
+    if (path.extname(req.path)) return next();
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.sendFile(path.join(distDir, 'index.html'));
+  });
 } else {
   app.use(express.static(publicDir));
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') return next();
+    if (req.path.startsWith('/api/')) return next();
+    if (req.path.startsWith('/uploads/')) return next();
+    if (path.extname(req.path)) return next();
+    res.sendFile(path.join(publicDir, 'index.html'));
+  });
 }
-
-// SPA fallback (Vue Router)
-app.use((req, res, next) => {
-  if (req.method !== 'GET') return next();
-  if (req.path.startsWith('/api/')) return next();
-  if (req.path.startsWith('/uploads/')) return next();
-  if (path.extname(req.path)) return next();
-  const indexFile = useDist
-    ? path.join(distDir, 'index.html')
-    : path.join(publicDir, 'index.html');
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.sendFile(indexFile);
-});
 
 // Error handler
 app.use((err, req, res, next) => {

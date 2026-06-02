@@ -2,32 +2,11 @@
   <div class="modulos-page">
     <div class="admin-page-header">
       <h1>Módulos</h1>
-      <p>Administra el contenido del programa de inducción</p>
-    </div>
-
-    <div class="modulos-tabs" role="tablist" aria-label="Tipo de inducción">
-      <button
-        type="button"
-        role="tab"
-        class="modulos-tab"
-        :class="{ 'is-active': tabActiva === 'empresa' }"
-        :aria-selected="tabActiva === 'empresa'"
-        @click="tabActiva = 'empresa'"
-      >
-        <Building2 :size="16" stroke-width="2" />
-        Introducción a la empresa
-      </button>
-      <button
-        type="button"
-        role="tab"
-        class="modulos-tab"
-        :class="{ 'is-active': tabActiva === 'puesto' }"
-        :aria-selected="tabActiva === 'puesto'"
-        @click="tabActiva = 'puesto'"
-      >
-        <Briefcase :size="16" stroke-width="2" />
-        Introducción al puesto
-      </button>
+      <p>Administra el contenido de inducción a la empresa (videos, exámenes y pasos).</p>
+      <p class="modulos-page-hint">
+        El checklist de <strong>inducción al puesto</strong> se administra en
+        <router-link to="/admin/checklist-puesto">Checklist puesto</router-link>.
+      </p>
     </div>
 
     <div class="admin-toolbar">
@@ -57,7 +36,7 @@
           </thead>
           <tbody>
             <tr v-for="(m, index) in modulosFiltradosVisibles" :key="m.id" :class="{ 'is-inactive': !m.activo }">
-              <td>{{ index + 1 }}</td>
+              <td>{{ m.orden ?? index + 1 }}</td>
               <td>{{ m.nombreDisplay || m.nombre }}</td>
               <td>{{ m.programaDisplay || m.programa }}</td>
               <td>{{ m.items?.length || 0 }}</td>
@@ -103,8 +82,8 @@
                     v-if="m.activo"
                     type="button"
                     class="icon-btn icon-btn--danger"
-                    title="Deshabilitar módulo"
-                    aria-label="Deshabilitar módulo"
+                    title="Deshabilitar"
+                    aria-label="Deshabilitar"
                     @click="toggleActivo(m, false)"
                   >
                     <Ban :size="16" stroke-width="2" />
@@ -113,8 +92,8 @@
                     v-else
                     type="button"
                     class="icon-btn icon-btn--success"
-                    title="Habilitar módulo"
-                    aria-label="Habilitar módulo"
+                    title="Habilitar"
+                    aria-label="Habilitar"
                     @click="toggleActivo(m, true)"
                   >
                     <CircleCheck :size="16" stroke-width="2" />
@@ -131,10 +110,13 @@
     </div>
 
     <AppModal v-if="modal" @close="modal = null">
-      <h2>{{ editId ? 'Editar módulo' : `Nuevo módulo — ${tabLabel}` }}</h2>
+      <h2>{{ editId ? 'Editar módulo' : 'Nuevo módulo' }}</h2>
       <form @submit.prevent="guardar">
         <div class="form-group"><label>Nombre</label><input v-model="form.nombre" required></div>
-        <div class="form-group"><label>Slug (identificador)</label><input v-model="form.slug" required :disabled="!!editId"></div>
+        <div class="form-group">
+          <label>Slug (identificador)</label>
+          <input v-model="form.slug" required :disabled="!!editId">
+        </div>
         <div class="form-group"><label>Descripción</label><textarea v-model="form.descripcion" rows="2" required></textarea></div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
           <div class="form-group">
@@ -201,7 +183,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useAppConfirm } from '../../composables/useAppConfirm';
 const { showConfirm } = useAppConfirm();
-import { Building2, Briefcase, Pencil, ClipboardList, Ban, CircleCheck } from '@lucide/vue';
+import { Pencil, ClipboardList, Ban, CircleCheck } from '@lucide/vue';
 import { api } from '../../api';
 import AppModal from '../../components/AppModal.vue';
 import AdminFilterBar from '../../components/AdminFilterBar.vue';
@@ -214,7 +196,6 @@ const editId = ref(null);
 const editModulo = ref(null);
 const addItemMod = ref(null);
 const examenModulo = ref(null);
-const tabActiva = ref('empresa');
 const filtroEstado = ref('todos');
 const form = ref(emptyForm());
 const itemForm = ref({ tipo: 'paso', titulo: '', descripcion: '', archivoUrl: '', orden: 0 });
@@ -224,10 +205,6 @@ const filtros = [
   { value: 'activos', label: 'Activos' },
   { value: 'inactivos', label: 'Inactivos' },
 ];
-
-const tabLabel = computed(() =>
-  tabActiva.value === 'empresa' ? 'Introducción a la empresa' : 'Introducción al puesto'
-);
 
 function normalizeModuloNombre(m) {
   return m.nombre
@@ -280,9 +257,7 @@ function dedupeModulos(list) {
 }
 
 const modulosFiltrados = computed(() =>
-  dedupeModulos(
-    modulos.value.filter((m) => m.alcance === tabActiva.value || m.alcance === 'ambos')
-  )
+  dedupeModulos(modulos.value.filter((m) => m.alcance === 'empresa' || m.alcance === 'ambos'))
 );
 
 const modulosFiltradosVisibles = computed(() => {
@@ -310,7 +285,7 @@ function abrirCrear() {
   editModulo.value = null;
   form.value = {
     ...emptyForm(),
-    alcance: tabActiva.value,
+    alcance: 'empresa',
     orden: modulosFiltrados.value.length + 1,
   };
   modal.value = true;
@@ -545,5 +520,16 @@ tr.is-inactive td {
   text-align: center;
   padding: 2rem;
   color: var(--slate-500);
+}
+
+.modulos-page-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.875rem;
+  color: var(--slate-500);
+}
+
+.modulos-page-hint a {
+  color: var(--blue-700);
+  font-weight: 600;
 }
 </style>

@@ -108,6 +108,7 @@ const links = [
   { to: '/admin/usuarios', label: 'Usuarios', icon: Users },
   { to: '/admin/progreso', label: 'Progreso', icon: TrendingUp },
   { to: '/admin/modulos', label: 'Módulos', icon: BookOpen },
+  { to: '/admin/checklist-puesto', label: 'Checklist puesto', icon: ClipboardList },
   { to: '/admin/areas', label: 'Áreas', icon: Building2 },
   { to: '/admin/dudas', label: 'Dudas', icon: CircleHelp, badge: 'dudas' },
   { to: '/admin/notificaciones', label: 'Notificaciones', icon: Bell, badge: 'notificaciones' },

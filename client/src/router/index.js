@@ -22,6 +22,7 @@ const routes = [
       { path: 'usuarios', name: 'admin-usuarios', component: () => import('../views/admin/UsuariosView.vue') },
       { path: 'progreso', name: 'admin-progreso', component: () => import('../views/admin/ProgresoView.vue') },
       { path: 'modulos', name: 'admin-modulos', component: () => import('../views/admin/ModulosView.vue') },
+      { path: 'checklist-puesto', name: 'admin-checklist-puesto', component: () => import('../views/admin/ChecklistPuestoView.vue') },
       { path: 'videos', name: 'admin-videos', component: () => import('../views/admin/VideosView.vue') },
       { path: 'examenes', name: 'admin-examenes', component: () => import('../views/admin/ExamenesView.vue') },
       { path: 'areas', name: 'admin-areas', component: () => import('../views/admin/AreasView.vue') },

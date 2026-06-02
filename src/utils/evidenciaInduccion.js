@@ -43,7 +43,7 @@ async function obtenerEvidenciaInduccion(usuarioId) {
 
   const progFilter = programaWhere(usuario.programa);
 
-  const [modulosEmpresa, modulosPuesto, progresos, intentos] = await Promise.all([
+  const [modulosEmpresa, itemsPuesto, progresosChecklistPuesto, progresos, intentos] = await Promise.all([
     prisma.modulo.findMany({
       where: {
         activo: true,
@@ -62,22 +62,16 @@ async function obtenerEvidenciaInduccion(usuarioId) {
       },
     }),
     usuario.induccionPuestoHabilitada
-      ? prisma.modulo.findMany({
-          where: {
-            activo: true,
-            alcance: { in: ['puesto', 'ambos'] },
-            slug: { notIn: SLUGS_EMPRESA },
-            ...progFilter,
-          },
+      ? prisma.checklistPuestoItem.findMany({
+          where: { activo: true },
           orderBy: { orden: 'asc' },
-          select: {
-            id: true,
-            slug: true,
-            nombre: true,
-            orden: true,
-            requiereExamen: true,
-            alcance: true,
-          },
+          select: { id: true, titulo: true, orden: true },
+        })
+      : Promise.resolve([]),
+    usuario.induccionPuestoHabilitada
+      ? prisma.checklistPuestoProgreso.findMany({
+          where: { usuarioId, completado: true },
+          select: { itemId: true, fechaCompletado: true },
         })
       : Promise.resolve([]),
     prisma.progreso.findMany({
@@ -105,9 +99,24 @@ async function obtenerEvidenciaInduccion(usuarioId) {
   const checklistEmpresa = modulosEmpresa.map((m) =>
     mapModuloChecklist(m, progresosMap, intentosPorModulo)
   );
-  const checklistPuesto = modulosPuesto.map((m) =>
-    mapModuloChecklist(m, progresosMap, intentosPorModulo)
+  const progresoPuestoMap = new Map(
+    progresosChecklistPuesto.map((p) => [p.itemId, p])
   );
+  const checklistPuesto = itemsPuesto.map((item) => {
+    const prog = progresoPuestoMap.get(item.id);
+    return {
+      id: item.id,
+      slug: `checklist-${item.orden}`,
+      nombre: item.titulo,
+      orden: item.orden,
+      requiereExamen: false,
+      completado: !!prog,
+      fechaCompletado: prog?.fechaCompletado || null,
+      calificacion: null,
+      aprobado: null,
+      esEvaluacionFinal: false,
+    };
+  });
 
   const evalFinal = checklistEmpresa.find((m) => m.esEvaluacionFinal) || null;
   const examenesConCalificacion = [...checklistEmpresa, ...checklistPuesto].filter(

@@ -89,12 +89,25 @@
       <section id="modulos" class="induccion-course-section">
         <div class="modules-section-header">
           <p class="section-label">Programa</p>
-          <h2 class="section-title">Tus módulos de inducción</h2>
+          <h2 class="section-title">
+            {{ alcance === 'puesto' ? 'Checklist de inducción al puesto' : 'Tus módulos de inducción' }}
+          </h2>
         </div>
 
       <div v-if="modulesLoading" class="modules-loading">
-        <p>Cargando módulos…</p>
+        <p>{{ alcance === 'puesto' ? 'Cargando checklist…' : 'Cargando módulos…' }}</p>
       </div>
+
+      <PuestoInduccionChecklist
+        v-else-if="alcance === 'puesto'"
+        :items="checklistItems"
+        :progreso-ids="checklistProgresoIds"
+        :pct="pct"
+        :progress-note="progressNote"
+        :comentarios-inicial="checklistComentarios"
+        :temas-inicial="checklistTemas"
+        @refresh="refreshProgreso"
+      />
 
       <InduccionCourse
         v-else
@@ -269,6 +282,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import { api } from '../../api';
 import InduccionCourse from '../../components/InduccionCourse.vue';
+import PuestoInduccionChecklist from '../../components/PuestoInduccionChecklist.vue';
 import AppModal from '../../components/AppModal.vue';
 import { useAppAlert } from '../../composables/useAppAlert';
 import { CircleCheck, Factory, Monitor, Building2, Briefcase, Layers, CircleHelp, ChevronRight, Play } from '@lucide/vue';
@@ -283,6 +297,12 @@ const router = useRouter();
 const modulesLoading = ref(true);
 const modulos = ref([]);
 const progreso = ref([]);
+const checklistItems = ref([]);
+const checklistProgresoIds = ref([]);
+const checklistComentarios = ref('');
+const checklistTemas = ref('');
+const checklistCompletados = ref(0);
+const checklistTotal = ref(0);
 const courseRef = ref(null);
 const activeModuloId = ref(null);
 const examenModal = ref(null);
@@ -341,19 +361,36 @@ const modulosCompletados = computed(() =>
   ).length
 );
 
-const pct = computed(() =>
-  modulos.value.length ? Math.round((modulosCompletados.value / modulos.value.length) * 100) : 0
-);
+const pct = computed(() => {
+  if (alcance.value === 'puesto') {
+    return checklistTotal.value
+      ? Math.round((checklistCompletados.value / checklistTotal.value) * 100)
+      : 0;
+  }
+  return modulos.value.length ? Math.round((modulosCompletados.value / modulos.value.length) * 100) : 0;
+});
 
-const progressNote = computed(() =>
-  modulosCompletados.value === modulos.value.length && modulos.value.length
+const progressNote = computed(() => {
+  if (alcance.value === 'puesto') {
+    const total = checklistTotal.value;
+    const done = checklistCompletados.value;
+    return done === total && total
+      ? 'Completaste todas las actividades del puesto'
+      : `${done} de ${total} actividades completadas`;
+  }
+  const total = modulos.value.length;
+  const done = modulosCompletados.value;
+  return done === total && total
     ? 'Completaste todos los módulos'
-    : `${modulosCompletados.value} de ${modulos.value.length} módulos completados`
-);
+    : `${done} de ${total} módulos completados`;
+});
 
-const induccionCompleta = computed(() =>
-  modulos.value.length > 0 && modulosCompletados.value === modulos.value.length
-);
+const induccionCompleta = computed(() => {
+  if (alcance.value === 'puesto') {
+    return checklistTotal.value > 0 && checklistCompletados.value === checklistTotal.value;
+  }
+  return modulos.value.length > 0 && modulosCompletados.value === modulos.value.length;
+});
 
 function solicitudEstado(tipo) {
   const list = solicitudes.value.filter((n) => n.tipo === tipo);
@@ -371,14 +408,32 @@ function labelSolicitud(tipo) {
 }
 
 async function fetchInduccionData() {
+  if (alcance.value === 'puesto') {
+    const [checklist, s] = await Promise.all([
+      api.get('/api/checklist-puesto/mi-progreso'),
+      api.get('/api/notificaciones/mias').catch(() => []),
+    ]);
+    checklistItems.value = checklist.items || [];
+    checklistProgresoIds.value = (checklist.progresos || []).map((p) => p.itemId);
+    checklistCompletados.value = checklist.completados ?? 0;
+    checklistTotal.value = checklist.total ?? 0;
+    checklistComentarios.value = checklist.comentarios || '';
+    checklistTemas.value = checklist.temasPuesto || '';
+    modulos.value = [];
+    progreso.value = [];
+    solicitudes.value = s;
+    return;
+  }
   const [m, p, s] = await Promise.all([
-    api.get(`/api/modulos?alcance=${alcance.value}`),
+    api.get('/api/modulos?alcance=empresa'),
     api.get('/api/progreso'),
     api.get('/api/notificaciones/mias').catch(() => []),
   ]);
   modulos.value = m;
   progreso.value = p;
   solicitudes.value = s;
+  checklistItems.value = [];
+  checklistProgresoIds.value = [];
 }
 
 async function loadData({ silent = false } = {}) {

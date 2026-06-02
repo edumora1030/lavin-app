@@ -174,6 +174,35 @@ async function main() {
     console.log(`• Módulo desactivado (fuera de lista): ${extra.slug}`);
   }
 
+  // --- Checklist inducción al puesto (tabla dedicada, no módulos) ---
+  const { CHECKLIST_PUESTO } = require('./checklist-puesto-data');
+  for (let i = 0; i < CHECKLIST_PUESTO.length; i++) {
+    const titulo = CHECKLIST_PUESTO[i];
+    const orden = i + 1;
+    const existente = await prisma.checklistPuestoItem.findFirst({ where: { orden } });
+    if (existente) {
+      await prisma.checklistPuestoItem.update({
+        where: { id: existente.id },
+        data: { titulo, activo: true },
+      });
+    } else {
+      await prisma.checklistPuestoItem.create({ data: { titulo, orden } });
+      console.log(`✓ Checklist: ${titulo}`);
+    }
+  }
+  const totalChecklist = await prisma.checklistPuestoItem.count({ where: { activo: true } });
+  console.log(`✓ ${totalChecklist} actividades en checklist de puesto.`);
+
+  const legacyPuesto = await prisma.modulo.findMany({
+    where: { alcance: 'puesto', slug: { startsWith: 'puesto-checklist-' } },
+  });
+  for (const m of legacyPuesto) {
+    await prisma.modulo.update({ where: { id: m.id }, data: { activo: false } });
+  }
+  if (legacyPuesto.length) {
+    console.log(`• ${legacyPuesto.length} módulos legacy de puesto desactivados.`);
+  }
+
   // --- Encuesta de satisfacción (preguntas default) ---
   const existingCount = await prisma.encuestaPregunta.count();
   if (existingCount === 0) {

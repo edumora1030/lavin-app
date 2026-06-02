@@ -1,7 +1,6 @@
 const prisma = require('../config/db');
 const { Errores } = require('../utils/errores');
 const { MODULOS_EMPRESA } = require('../../scripts/programs-data');
-
 const SLUGS_EMPRESA = MODULOS_EMPRESA.map((m) => m.slug);
 
 exports.listar = async (req, res) => {
@@ -34,6 +33,8 @@ exports.listar = async (req, res) => {
 
     if (alcanceFiltro === 'empresa') {
       where.slug = { in: SLUGS_EMPRESA };
+    } else if (alcanceFiltro === 'puesto') {
+      return res.json([]);
     }
   }
   const modulos = await prisma.modulo.findMany({

@@ -79,6 +79,8 @@ model Usuario {
   areaId                      String?
   induccionEmpresaHabilitada  Boolean   @default(false)
   induccionPuestoHabilitada   Boolean   @default(false)
+  comentariosInduccionPuesto  String?   @db.Text
+  temasPuesto                 String?   @db.Text
   activo                      Boolean   @default(true)
   primerLogin                 Boolean   @default(true)
   creadoEn                    DateTime  @default(now())
@@ -94,7 +96,8 @@ model Usuario {
   usuariosCreados     Usuario[]       @relation("CreadorRelacion")
   dudas               Duda[]
   encuestaRespuestas  EncuestaRespuesta[]
-  notificacionesRH    NotificacionRH[]
+  notificacionesRH       NotificacionRH[]
+  checklistPuestoProgreso ChecklistPuestoProgreso[]
 
   @@index([nomina])
   @@index([rol, activo])
@@ -290,6 +293,32 @@ model EncuestaRespuesta {
   pregunta EncuestaPregunta @relation(fields: [preguntaId], references: [id], onDelete: Cascade)
 
   @@unique([usuarioId, preguntaId])
+  @@index([usuarioId])
+}
+
+model ChecklistPuestoItem {
+  id       String   @id @default(uuid())
+  titulo   String
+  orden    Int      @default(0)
+  activo   Boolean  @default(true)
+  creadoEn DateTime @default(now())
+
+  progresos ChecklistPuestoProgreso[]
+
+  @@index([activo, orden])
+}
+
+model ChecklistPuestoProgreso {
+  id              String   @id @default(uuid())
+  usuarioId       String
+  itemId          String
+  completado      Boolean  @default(true)
+  fechaCompletado DateTime @default(now())
+
+  usuario Usuario             @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  item    ChecklistPuestoItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, itemId])
   @@index([usuarioId])
 }
 

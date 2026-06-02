@@ -57,6 +57,8 @@ async function req(method, path, body, isForm = false) {
     const err = new Error(data.mensaje || 'Error en la solicitud');
     err.codigo = data.codigo;
     err.status = res.status;
+    if (data.nombre) err.nombre = data.nombre;
+    if (data.rol) err.rol = data.rol;
     throw err;
   }
   return data;

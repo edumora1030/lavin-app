@@ -6,9 +6,14 @@ import {
   ArcElement,
   CategoryScale,
   LinearScale,
+  RadialLinearScale,
   BarElement,
+  LineElement,
+  PointElement,
   BarController,
+  LineController,
   DoughnutController,
+  RadarController,
 } from 'chart.js';
 
 ChartJS.register(
@@ -18,9 +23,14 @@ ChartJS.register(
   ArcElement,
   CategoryScale,
   LinearScale,
+  RadialLinearScale,
   BarElement,
+  LineElement,
+  PointElement,
   BarController,
+  LineController,
   DoughnutController,
+  RadarController,
 );
 
 export const COLORS = {
@@ -37,6 +47,13 @@ export const COLORS = {
   dangerPale: '#fca5a5',
   muted: '#64748b',
   grid: '#e2e8f0',
+  /* Paleta dashboard RH — azul marino */
+  brand: '#0f2744',
+  brandMid: '#1e3a5f',
+  brandLight: '#2563eb',
+  brandPale: '#93c5fd',
+  accent: '#f59e0b',
+  accentBlue: '#3b82f6',
 };
 
 export const baseOptions = {
@@ -90,6 +107,60 @@ export function barOptions(title, horizontal = false) {
     plugins: {
       ...baseOptions.plugins,
       title: title ? { display: true, text: title, color: COLORS.navy, font: { size: 14, weight: '600' } } : undefined,
+    },
+  };
+}
+
+export function lineOptions() {
+  return {
+    ...baseOptions,
+    interaction: { mode: 'index', intersect: false },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { color: COLORS.muted, font: { size: 11 }, maxRotation: 45, minRotation: 0 },
+      },
+      y: {
+        grid: { color: COLORS.grid, drawBorder: false },
+        ticks: { color: COLORS.muted, font: { size: 11 } },
+        beginAtZero: true,
+        max: 100,
+      },
+    },
+    plugins: {
+      ...baseOptions.plugins,
+      legend: { position: 'top', align: 'end' },
+    },
+  };
+}
+
+export function radarOptions() {
+  return {
+    ...baseOptions,
+    scales: {
+      r: {
+        beginAtZero: true,
+        max: 100,
+        grid: { color: COLORS.grid },
+        angleLines: { color: COLORS.grid },
+        pointLabels: { color: COLORS.navy, font: { size: 11, weight: '600' } },
+        ticks: { display: false },
+      },
+    },
+    plugins: {
+      ...baseOptions.plugins,
+      legend: { position: 'bottom' },
+    },
+  };
+}
+
+export function doughnutOptionsCompact() {
+  return {
+    ...doughnutOptions(''),
+    cutout: '72%',
+    plugins: {
+      ...baseOptions.plugins,
+      legend: { position: 'bottom', labels: { boxWidth: 10, padding: 14 } },
     },
   };
 }

@@ -2,6 +2,7 @@ const prisma = require('../config/db');
 const { Errores } = require('../utils/errores');
 const { auditar } = require('../utils/auditoria');
 const { MODULOS_EMPRESA } = require('../../scripts/programs-data');
+const SLUGS_EMPRESA = MODULOS_EMPRESA.map((m) => m.slug);
 
 exports.miProgreso = async (req, res) => {
   const progresos = await prisma.progreso.findMany({
@@ -68,7 +69,7 @@ async function completarModuloUsuario(usuarioId, moduloId, {
   if (!modulo) throw new ProgresoError('NOT_FOUND', 'modulo', 'Módulo no encontrado');
 
   if (validarOrden && rol === 'empleado') {
-    const slugs = MODULOS_EMPRESA.map((m) => m.slug);
+    const slugs = SLUGS_EMPRESA;
     const idx = slugs.indexOf(modulo.slug);
     if (idx > 0) {
       const prevMod = await prisma.modulo.findUnique({ where: { slug: slugs[idx - 1] } });
@@ -159,18 +160,18 @@ const {
 } = require('../utils/progresoResumen');
 
 exports.resumen = async (req, res) => {
-  const { empleados, modulosEmpresa, modulosPuesto } = await listarEmpleadosResumen(req);
+  const { empleados, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario } = await listarEmpleadosResumen(req);
 
   const data = empleados.map(({ password, progresos, ...e }) => ({
     ...e,
-    ...mapEmpleadoResumen({ ...e, progresos }, modulosEmpresa, modulosPuesto),
+    ...mapEmpleadoResumen({ ...e, progresos }, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario),
   }));
   return res.json(data);
 };
 
 exports.resumenCsv = async (req, res) => {
-  const { empleados, modulosEmpresa, modulosPuesto } = await listarEmpleadosResumen(req);
-  const rows = mapEmpleadosResumen(empleados, modulosEmpresa, modulosPuesto);
+  const { empleados, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario } = await listarEmpleadosResumen(req);
+  const rows = mapEmpleadosResumen(empleados, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario);
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="progreso-empleados.csv"');

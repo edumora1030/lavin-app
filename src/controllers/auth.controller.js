@@ -64,14 +64,62 @@ exports.ingreso = async (req, res) => {
         nomina,
         password: hash,
         rol: 'empleado',
-        primerLogin: false,
+        primerLogin: true,
         activo: true,
       },
     });
     await auditar({ usuarioId: usuario.id, accion: 'usuario_auto_creado', detalle: { nomina }, ip: req.ip });
   }
 
+  if (usuario.rol === 'empleado' && usuario.primerLogin) {
+    return errorResponse(res, 401, 'REQUIERE_ESTABLECER_PASSWORD', 'Debes establecer tu contraseña.', {
+      nomina: usuario.nomina,
+      nombre: usuario.nombre,
+    });
+  }
+
+  if (usuario.rol === 'empleado') {
+    if (!password) {
+      return errorResponse(res, 401, 'REQUIERE_PASSWORD', 'Ingresa tu contraseña.', { rol: 'empleado' });
+    }
+    const ok = await bcrypt.compare(password, usuario.password);
+    if (!ok) {
+      await auditar({ usuarioId: usuario.id, accion: 'login_fallido', detalle: { nomina }, ip: req.ip });
+      return Errores.credenciales(res);
+    }
+    return emitirSesion(res, usuario, req);
+  }
+
   return emitirSesion(res, usuario, req);
+};
+
+exports.establecerPassword = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return Errores.validacion(res, errors.array().map((e) => ({ campo: e.path, mensaje: e.msg })));
+
+  const nomina = String(req.body.nomina).trim();
+  const { passwordNueva } = req.body;
+  const usuario = await prisma.usuario.findUnique({ where: { nomina } });
+
+  if (!usuario || !usuario.activo || usuario.rol !== 'empleado') {
+    return Errores.credenciales(res);
+  }
+
+  if (!/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(passwordNueva)) {
+    return Errores.validacion(res, [{
+      campo: 'passwordNueva',
+      mensaje: 'Mínimo 8 caracteres, una mayúscula y un número.',
+    }]);
+  }
+
+  const hash = await bcrypt.hash(passwordNueva, 10);
+  const actualizado = await prisma.usuario.update({
+    where: { id: usuario.id },
+    data: { password: hash, primerLogin: false },
+  });
+
+  await auditar({ usuarioId: usuario.id, accion: 'password_establecida', ip: req.ip });
+  return emitirSesion(res, actualizado, req);
 };
 
 exports.login = async (req, res) => {

@@ -168,8 +168,8 @@ function csv(rows, columnas) {
 }
 
 exports.reporteEmpleados = async (req, res) => {
-  const { empleados, modulosEmpresa, modulosPuesto } = await listarEmpleadosResumen(req);
-  const rows = mapEmpleadosResumen(empleados, modulosEmpresa, modulosPuesto);
+  const { empleados, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario } = await listarEmpleadosResumen(req);
+  const rows = mapEmpleadosResumen(empleados, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario);
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="progreso-empleados.csv"');

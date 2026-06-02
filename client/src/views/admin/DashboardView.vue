@@ -1,193 +1,463 @@
 <template>
-  <div class="db-root">
-    <div class="admin-page-header">
-      <h1>Dashboard</h1>
-      <p>Resumen del programa de inducción</p>
-    </div>
+  <div class="db">
+    <header class="db-header">
+      <div>
+        <h1 class="db-header__title">Overview</h1>
+        <p class="db-header__sub">Resumen visual del programa de inducción</p>
+      </div>
+      <div class="db-header__actions">
+        <div class="db-tabs" role="tablist">
+          <button
+            v-for="tab in tabs"
+            :key="tab.key"
+            type="button"
+            role="tab"
+            class="db-tab"
+            :class="{ 'db-tab--active': activeTab === tab.key }"
+            :aria-selected="activeTab === tab.key"
+            @click="activeTab = tab.key"
+          >
+            <component :is="tab.icon" :size="14" stroke-width="2" />
+            {{ tab.label }}
+          </button>
+        </div>
+      </div>
+    </header>
 
-    <p v-if="loading" style="color:var(--slate-500)">Cargando métricas…</p>
-    <p v-else-if="error" class="error">{{ error }}</p>
+    <p v-if="loading" class="db-state">Cargando métricas…</p>
+    <p v-else-if="error" class="db-state db-state--error">{{ error }}</p>
 
     <template v-else-if="data">
-
-      <!-- ── FILTROS / TABS ─────────────────────────────── -->
-      <div class="db-tabs">
-        <button
-          v-for="tab in tabs"
-          :key="tab.key"
-          type="button"
-          class="db-tab"
-          :class="{ 'db-tab--active': activeTab === tab.key }"
-          @click="activeTab = tab.key"
+      <!-- KPIs -->
+      <section class="db-kpis">
+        <article
+          v-for="k in currentKpis"
+          :key="k.label"
+          class="db-kpi"
+          :class="{ 'db-kpi--primary': k.primary }"
         >
-          <component :is="tab.icon" :size="15" stroke-width="2" />
-          {{ tab.label }}
-        </button>
-      </div>
-
-      <!-- ══════════════════════════════════════════════════
-           VENTANA: GENERAL
-      ══════════════════════════════════════════════════ -->
-      <section v-if="activeTab === 'general'" class="db-window db-window--general">
-        <div class="db-window__kpis">
-          <div
-            v-for="k in globalKpiCards"
-            :key="k.label"
-            class="metric-card"
-            :class="{ 'metric-card--highlight': k.highlight }"
-          >
-            <div>
-              <div class="metric-label">{{ k.label }}</div>
-              <div class="metric-value">{{ k.value }}</div>
-              <div v-if="k.sub" class="metric-sub">{{ k.sub }}</div>
-            </div>
-            <div class="metric-icon" :class="k.iconClass">
-              <component :is="k.icon" :size="22" stroke-width="2" />
+          <div class="db-kpi__top">
+            <span class="db-kpi__label">{{ k.label }}</span>
+            <div class="db-kpi__icon" :class="k.iconTone">
+              <component :is="k.icon" :size="18" stroke-width="2" />
             </div>
           </div>
-        </div>
-
-        <div class="db-charts-row">
-          <div class="db-chart-card">
-            <h3 class="db-chart-title">Comparativa por programa</h3>
-            <div class="db-chart-wrap">
-              <Bar v-if="comparativaChart" :data="comparativaChart" :options="comparativaOptions" />
-            </div>
+          <div class="db-kpi__value">{{ k.value }}</div>
+          <div v-if="k.trend" class="db-kpi__trend" :class="`db-kpi__trend--${k.trend.type}`">
+            <component :is="k.trend.type === 'up' ? TrendingUp : TrendingDown" :size="14" stroke-width="2.5" />
+            <span>{{ k.trend.text }}</span>
           </div>
-          <div class="db-chart-card">
-            <h3 class="db-chart-title">Progreso por área</h3>
-            <div class="db-chart-wrap">
-              <Bar v-if="areasChart" :data="areasChart" :options="areasOptions" />
-            </div>
-          </div>
-        </div>
+          <p v-if="k.sub" class="db-kpi__sub">{{ k.sub }}</p>
+        </article>
       </section>
 
-      <!-- ══════════════════════════════════════════════════
-           VENTANA: OPERATIVOS / ADMINISTRATIVOS
-      ══════════════════════════════════════════════════ -->
-      <template v-for="prog in programas" :key="prog.key">
-        <section
-          v-if="activeTab === prog.key"
-          class="db-window"
-          :class="`db-window--${prog.key}`"
-        >
-          <!-- Métricas -->
-          <div class="db-window__kpis">
-            <div
-              v-for="k in kpiCardsFor(prog.key)"
-              :key="`${prog.key}-${k.label}`"
-              class="metric-card"
-              :class="`metric-card--${prog.key}`"
-            >
+      <!-- GENERAL -->
+      <div v-if="activeTab === 'general'" class="db-grid">
+        <article class="db-card db-card--wide">
+          <div class="db-card__head">
+            <h3>Avance por módulo</h3>
+            <span class="db-card__hint">% de colaboradores que completaron cada módulo</span>
+          </div>
+          <div class="db-chart db-chart--line">
+            <Line v-if="modulosLineChart" :data="modulosLineChart" :options="lineChartOptions" />
+            <p v-else class="db-empty">Sin datos de módulos</p>
+          </div>
+        </article>
+
+        <article class="db-card">
+          <div class="db-card__head">
+            <h3>Estado global</h3>
+          </div>
+          <div class="db-chart db-chart--donut">
+            <Doughnut v-if="estadoGlobalChart" :data="estadoGlobalChart" :options="donutOptions" />
+          </div>
+          <div class="db-donut-legend">
+            <div v-for="item in estadoGlobalLegend" :key="item.label" class="db-donut-legend__item">
+              <span class="db-donut-legend__dot" :style="{ background: item.color }" />
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="db-card db-card--gauge">
+          <div class="db-card__head">
+            <h3>Inducción completada</h3>
+          </div>
+          <div class="db-gauge-wrap">
+            <div class="db-gauge" :style="{ '--pct': data.pctCompletado }">
+              <svg viewBox="0 0 200 110" class="db-gauge__svg" aria-hidden="true">
+                <path
+                  class="db-gauge__track"
+                  d="M 20 95 A 80 80 0 0 1 180 95"
+                  fill="none"
+                  stroke-width="14"
+                  stroke-linecap="round"
+                />
+                <path
+                  class="db-gauge__fill"
+                  d="M 20 95 A 80 80 0 0 1 180 95"
+                  fill="none"
+                  stroke-width="14"
+                  stroke-linecap="round"
+                  pathLength="100"
+                  :stroke-dasharray="`${data.pctCompletado} 100`"
+                />
+              </svg>
+              <div class="db-gauge__center">
+                <span class="db-gauge__num">{{ data.pctCompletado }}%</span>
+                <span class="db-gauge__lbl">{{ data.completados }} de {{ data.totalEmpleados }}</span>
+              </div>
+            </div>
+            <div class="db-gauge__split">
               <div>
-                <div class="metric-label">{{ k.label }}</div>
-                <div class="metric-value">{{ k.value }}</div>
-                <div v-if="k.sub" class="metric-sub">{{ k.sub }}</div>
+                <span class="db-gauge__split-label">Operativos</span>
+                <strong>{{ data.porPrograma?.operativo?.completados ?? 0 }}</strong>
               </div>
-              <div class="metric-icon" :class="k.iconClass">
-                <component :is="k.icon" :size="22" stroke-width="2" />
-              </div>
-            </div>
-          </div>
-
-          <!-- Gráficas -->
-          <div class="db-charts-row">
-            <div class="db-chart-card db-chart-card--sm">
-              <h3 class="db-chart-title">Estado de inducción</h3>
-              <div class="db-chart-wrap db-chart-wrap--donut">
-                <Doughnut
-                  v-if="estadoChartFor(prog.key)"
-                  :data="estadoChartFor(prog.key)"
-                  :options="estadoOptions"
-                />
-              </div>
-            </div>
-            <div class="db-chart-card db-chart-card--lg">
-              <h3 class="db-chart-title">Avance por módulo</h3>
-              <div class="db-chart-wrap db-chart-wrap--tall">
-                <Bar
-                  v-if="modulosChartFor(prog.key)"
-                  :data="modulosChartFor(prog.key)"
-                  :options="modulosOptionsFor(prog.key)"
-                />
+              <div>
+                <span class="db-gauge__split-label">Administrativos</span>
+                <strong>{{ data.porPrograma?.administrativo?.completados ?? 0 }}</strong>
               </div>
             </div>
           </div>
-        </section>
-      </template>
+        </article>
 
+        <article class="db-card db-card--bars">
+          <div class="db-card__head">
+            <h3>Progreso por área</h3>
+            <span class="db-card__hint">% con inducción completa</span>
+          </div>
+          <ul v-if="areaBars.length" class="db-area-list">
+            <li v-for="a in areaBars" :key="a.nombre" class="db-area-row">
+              <div class="db-area-row__meta">
+                <span class="db-area-row__name">{{ a.nombre }}</span>
+                <span class="db-area-row__pct">{{ a.pct }}%</span>
+              </div>
+              <div class="db-area-row__track">
+                <div class="db-area-row__fill" :style="{ width: `${a.pct}%` }" />
+              </div>
+              <span class="db-area-row__count">{{ a.completados }}/{{ a.total }}</span>
+            </li>
+          </ul>
+          <p v-else class="db-empty">Sin áreas registradas</p>
+        </article>
+
+        <article class="db-card">
+          <div class="db-card__head">
+            <h3>Comparativa por programa</h3>
+          </div>
+          <div class="db-chart db-chart--radar">
+            <Radar v-if="programaRadarChart" :data="programaRadarChart" :options="radarChartOptions" />
+          </div>
+        </article>
+
+        <article class="db-card">
+          <div class="db-card__head">
+            <h3>Operativos vs administrativos</h3>
+          </div>
+          <div class="db-chart db-chart--bar">
+            <Bar v-if="comparativaChart" :data="comparativaChart" :options="comparativaBarOptions" />
+          </div>
+        </article>
+      </div>
+
+      <!-- OPERATIVO / ADMINISTRATIVO -->
+      <div v-else class="db-grid db-grid--program">
+        <article class="db-card db-card--wide">
+          <div class="db-card__head">
+            <h3>Avance por módulo — {{ programaLabel }}</h3>
+          </div>
+          <div class="db-chart db-chart--tall">
+            <Bar
+              v-if="modulosBarChart"
+              :data="modulosBarChart"
+              :options="modulosBarOptions"
+            />
+            <p v-else class="db-empty">Sin módulos para este programa</p>
+          </div>
+        </article>
+
+        <article class="db-card">
+          <div class="db-card__head">
+            <h3>Estado de inducción</h3>
+          </div>
+          <div class="db-chart db-chart--donut">
+            <Doughnut v-if="estadoProgramaChart" :data="estadoProgramaChart" :options="donutOptions" />
+          </div>
+        </article>
+
+        <article class="db-card db-card--gauge">
+          <div class="db-card__head">
+            <h3>Completados — {{ programaLabel }}</h3>
+          </div>
+          <div class="db-gauge-wrap">
+            <div class="db-gauge" :style="{ '--pct': programaPct }">
+              <svg viewBox="0 0 200 110" class="db-gauge__svg" aria-hidden="true">
+                <path class="db-gauge__track" d="M 20 95 A 80 80 0 0 1 180 95" fill="none" stroke-width="14" stroke-linecap="round" />
+                <path
+                  class="db-gauge__fill"
+                  d="M 20 95 A 80 80 0 0 1 180 95"
+                  fill="none"
+                  stroke-width="14"
+                  stroke-linecap="round"
+                  pathLength="100"
+                  :stroke-dasharray="`${programaPct} 100`"
+                />
+              </svg>
+              <div class="db-gauge__center">
+                <span class="db-gauge__num">{{ programaPct }}%</span>
+                <span class="db-gauge__lbl">{{ programaMetrics?.completados ?? 0 }} colaboradores</span>
+              </div>
+            </div>
+            <div class="db-gauge__split db-gauge__split--3">
+              <div>
+                <span class="db-gauge__split-label">Total</span>
+                <strong>{{ programaMetrics?.total ?? 0 }}</strong>
+              </div>
+              <div>
+                <span class="db-gauge__split-label">En curso</span>
+                <strong>{{ programaMetrics?.enCurso ?? 0 }}</strong>
+              </div>
+              <div>
+                <span class="db-gauge__split-label">Sin iniciar</span>
+                <strong>{{ programaMetrics?.sinIniciar ?? 0 }}</strong>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="db-card db-card--bars">
+          <div class="db-card__head">
+            <h3>Distribución del programa</h3>
+          </div>
+          <ul class="db-area-list">
+            <li v-for="row in programaDistrib" :key="row.label" class="db-area-row">
+              <div class="db-area-row__meta">
+                <span class="db-area-row__name">{{ row.label }}</span>
+                <span class="db-area-row__pct">{{ row.pct }}%</span>
+              </div>
+              <div class="db-area-row__track">
+                <div class="db-area-row__fill" :class="row.tone" :style="{ width: `${row.pct}%` }" />
+              </div>
+              <span class="db-area-row__count">{{ row.count }}</span>
+            </li>
+          </ul>
+        </article>
+      </div>
     </template>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { Bar, Doughnut } from 'vue-chartjs';
+import { Bar, Doughnut, Line, Radar } from 'vue-chartjs';
 import {
   Users,
   CircleCheck,
   Clock,
-  CircleAlert,
   CircleHelp,
   ClipboardList,
-  BookOpen,
   Bell,
   Globe,
   HardHat,
   Briefcase,
+  TrendingUp,
+  TrendingDown,
 } from '@lucide/vue';
 import { api } from '../../api';
-import { COLORS, doughnutOptions, barOptions } from '../../utils/chartTheme';
+import {
+  COLORS,
+  doughnutOptionsCompact,
+  barOptions,
+  lineOptions,
+  radarOptions,
+} from '../../utils/chartTheme';
 
 const tabs = [
-  { key: 'general',        label: 'General',          icon: Globe },
-  { key: 'operativo',      label: 'Operativos',        icon: HardHat },
-  { key: 'administrativo', label: 'Administrativos',   icon: Briefcase },
+  { key: 'general', label: 'General', icon: Globe },
+  { key: 'operativo', label: 'Operativos', icon: HardHat },
+  { key: 'administrativo', label: 'Administrativos', icon: Briefcase },
 ];
 
 const programas = [
-  { key: 'operativo',      label: 'Operativos' },
+  { key: 'operativo', label: 'Operativos' },
   { key: 'administrativo', label: 'Administrativos' },
 ];
 
 const activeTab = ref('general');
-const loading   = ref(true);
-const data      = ref(null);
-const error     = ref('');
+const loading = ref(true);
+const data = ref(null);
+const error = ref('');
 
-// ── KPIs globales ───────────────────────────────────────────────────
-const globalKpiCards = computed(() => {
+const donutOptions = doughnutOptionsCompact();
+const lineChartOptions = lineOptions();
+const radarChartOptions = radarOptions();
+const comparativaBarOptions = {
+  ...barOptions('', false),
+  plugins: { ...barOptions('').plugins, legend: { position: 'top' } },
+};
+
+const programaLabel = computed(() =>
+  programas.find((p) => p.key === activeTab.value)?.label ?? ''
+);
+
+const programaMetrics = computed(() =>
+  activeTab.value !== 'general' ? data.value?.porPrograma?.[activeTab.value] : null
+);
+
+const programaPct = computed(() => programaMetrics.value?.pctCompletado ?? 0);
+
+const globalKpis = computed(() => {
   if (!data.value) return [];
   const d = data.value;
+  const pendientes = (d.dudasPendientes ?? 0) + (d.notificacionesPendientes ?? 0);
   return [
     {
       label: 'Empleados activos',
       value: d.totalEmpleados,
-      sub: `${d.porPrograma?.operativo?.total ?? 0} operativos · ${d.porPrograma?.administrativo?.total ?? 0} administrativos`,
+      sub: `${d.totalModulosEmpresa} módulos · ${d.totalAreas ?? 0} áreas · ${d.encuestasCompletadas} encuestas`,
       icon: Users,
-      highlight: true,
+      primary: true,
+      trend: { type: 'up', text: `${d.porPrograma?.operativo?.total ?? 0} operativos` },
     },
-    { label: 'Dudas pendientes',  value: d.dudasPendientes,         icon: CircleHelp },
-    { label: 'Notificaciones',    value: d.notificacionesPendientes, icon: Bell, iconClass: 'metric-icon--warning', sub: 'Recorrido y sistemas' },
-    { label: 'Encuestas enviadas', value: d.encuestasCompletadas,   icon: ClipboardList },
-    { label: 'Módulos empresa',   value: d.totalModulosEmpresa,     icon: BookOpen },
+    {
+      label: 'Inducción completa',
+      value: d.completados,
+      icon: CircleCheck,
+      iconTone: 'db-kpi__icon--success',
+      trend: { type: 'up', text: `${d.pctCompletado}% del total` },
+    },
+    {
+      label: 'En curso',
+      value: d.enCurso,
+      icon: Clock,
+      iconTone: 'db-kpi__icon--warn',
+      trend: { type: d.sinIniciar > d.enCurso ? 'down' : 'up', text: `${d.sinIniciar} sin iniciar` },
+    },
+    {
+      label: 'Pendientes RH',
+      value: pendientes,
+      icon: Bell,
+      iconTone: pendientes > 0 ? 'db-kpi__icon--danger' : 'db-kpi__icon--muted',
+      trend: {
+        type: pendientes > 0 ? 'down' : 'up',
+        text: `${d.dudasPendientes ?? 0} dudas · ${d.notificacionesPendientes ?? 0} notif.`,
+      },
+    },
   ];
 });
 
-// ── KPIs por programa ───────────────────────────────────────────────
-function kpiCardsFor(programa) {
-  const m = data.value?.porPrograma?.[programa];
+const programKpis = computed(() => {
+  const m = programaMetrics.value;
   if (!m) return [];
   return [
-    { label: 'Colaboradores',      value: m.total,       sub: 'Empleados activos',      icon: Users },
-    { label: 'Inducción completa', value: m.completados, sub: `${m.pctCompletado}% del programa`, icon: CircleCheck,  iconClass: 'metric-icon--success' },
-    { label: 'En curso',           value: m.enCurso,     sub: 'Con al menos 1 módulo',  icon: Clock,        iconClass: 'metric-icon--warning' },
-    { label: 'Sin iniciar',        value: m.sinIniciar,  sub: '0 módulos completados',  icon: CircleAlert,  iconClass: 'metric-icon--danger' },
+    { label: 'Colaboradores', value: m.total, icon: Users, primary: true, trend: { type: 'up', text: 'Activos en programa' } },
+    { label: 'Completados', value: m.completados, icon: CircleCheck, iconTone: 'db-kpi__icon--success', trend: { type: 'up', text: `${m.pctCompletado}% completó` } },
+    { label: 'En curso', value: m.enCurso, icon: Clock, iconTone: 'db-kpi__icon--warn', trend: { type: 'up', text: 'Con avance parcial' } },
+    { label: 'Sin iniciar', value: m.sinIniciar, icon: CircleHelp, iconTone: 'db-kpi__icon--danger', trend: { type: m.sinIniciar ? 'down' : 'up', text: '0 módulos hechos' } },
   ];
+});
+
+const currentKpis = computed(() =>
+  activeTab.value === 'general' ? globalKpis.value : programKpis.value
+);
+
+const estadoGlobalChart = computed(() => {
+  if (!data.value) return null;
+  const d = data.value;
+  return {
+    labels: ['Completados', 'En curso', 'Sin iniciar'],
+    datasets: [{
+      data: [d.completados, d.enCurso, d.sinIniciar],
+      backgroundColor: [COLORS.brandMid, COLORS.accent, COLORS.brandPale],
+      borderColor: '#fff',
+      borderWidth: 3,
+      hoverOffset: 8,
+    }],
+  };
+});
+
+const estadoGlobalLegend = computed(() => {
+  if (!data.value) return [];
+  const d = data.value;
+  return [
+    { label: 'Completados', value: d.completados, color: COLORS.brandMid },
+    { label: 'En curso', value: d.enCurso, color: COLORS.accent },
+    { label: 'Sin iniciar', value: d.sinIniciar, color: COLORS.brandPale },
+  ];
+});
+
+function estadoChartFor(programa) {
+  const m = data.value?.porPrograma?.[programa];
+  if (!m) return null;
+  return {
+    labels: ['Completados', 'En curso', 'Sin iniciar'],
+    datasets: [{
+      data: [m.completados, m.enCurso, m.sinIniciar],
+      backgroundColor: [COLORS.brand, COLORS.accent, COLORS.brandPale],
+      borderColor: '#fff',
+      borderWidth: 3,
+      hoverOffset: 8,
+    }],
+  };
 }
 
-// ── Gráfica comparativa ─────────────────────────────────────────────
+const estadoProgramaChart = computed(() =>
+  activeTab.value !== 'general' ? estadoChartFor(activeTab.value) : null
+);
+
+const modulosLineChart = computed(() => {
+  const items = data.value?.progresoPorModulo;
+  if (!items?.length) return null;
+  return {
+    labels: items.map((m) => truncate(m.nombre, 14)),
+    datasets: [
+      {
+        label: 'Avance global',
+        data: items.map((m) => m.pct),
+        borderColor: COLORS.brandMid,
+        backgroundColor: 'transparent',
+        tension: 0.35,
+        pointRadius: 4,
+        pointBackgroundColor: COLORS.brand,
+        borderWidth: 2.5,
+      },
+      {
+        label: 'Meta',
+        data: items.map(() => 100),
+        borderColor: COLORS.accent,
+        borderDash: [6, 4],
+        tension: 0.35,
+        pointRadius: 0,
+        borderWidth: 2,
+      },
+    ],
+  };
+});
+
+const programaRadarChart = computed(() => {
+  if (!data.value?.porPrograma) return null;
+  return {
+    labels: ['% Completados', '% En curso', '% Sin iniciar'],
+    datasets: programas.map((prog) => {
+      const m = data.value.porPrograma[prog.key];
+      const t = m.total || 1;
+      return {
+        label: prog.label,
+        data: [
+          Math.round((m.completados / t) * 100),
+          Math.round((m.enCurso / t) * 100),
+          Math.round((m.sinIniciar / t) * 100),
+        ],
+        backgroundColor: prog.key === 'operativo' ? 'rgba(30, 58, 95, 0.25)' : 'rgba(37, 99, 235, 0.2)',
+        borderColor: prog.key === 'operativo' ? COLORS.brandMid : COLORS.accentBlue,
+        borderWidth: 2,
+        pointBackgroundColor: prog.key === 'operativo' ? COLORS.brand : COLORS.accentBlue,
+      };
+    }),
+  };
+});
+
 const comparativaChart = computed(() => {
   if (!data.value?.porPrograma) return null;
   return {
@@ -197,50 +467,43 @@ const comparativaChart = computed(() => {
       return {
         label: prog.label,
         data: [m.completados, m.enCurso, m.sinIniciar],
-        backgroundColor: prog.key === 'operativo' ? COLORS.blue : COLORS.navyMid,
-        borderRadius: 8,
+        backgroundColor: prog.key === 'operativo' ? COLORS.brandMid : COLORS.accentBlue,
+        borderRadius: 10,
         borderSkipped: false,
       };
     }),
   };
 });
-const comparativaOptions = barOptions('', false);
 
-// ── Gráfica estado (dona) ───────────────────────────────────────────
-function estadoChartFor(programa) {
-  const m = data.value?.porPrograma?.[programa];
-  if (!m) return null;
-  return {
-    labels: ['Completados', 'En curso', 'Sin iniciar'],
-    datasets: [{
-      data: [m.completados, m.enCurso, m.sinIniciar],
-      backgroundColor: [COLORS.success, COLORS.warning, COLORS.bluePale],
-      borderColor: '#fff',
-      borderWidth: 3,
-      hoverOffset: 6,
-    }],
-  };
-}
-const estadoOptions = doughnutOptions('');
+const areaBars = computed(() => {
+  if (!data.value?.porArea?.length) return [];
+  return [...data.value.porArea]
+    .map((a) => ({
+      ...a,
+      pct: a.total ? Math.round((a.completados / a.total) * 100) : 0,
+    }))
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 8);
+});
 
-// ── Gráfica avance por módulo ───────────────────────────────────────
-function modulosChartFor(programa) {
-  const items = data.value?.progresoPorModuloPorPrograma?.[programa];
+const modulosBarChart = computed(() => {
+  const items = data.value?.progresoPorModuloPorPrograma?.[activeTab.value];
   if (!items?.length) return null;
   return {
-    labels: items.map((m) => `${m.orden}. ${truncate(m.nombre, 28)}`),
+    labels: items.map((m) => `${m.orden}. ${truncate(m.nombre, 22)}`),
     datasets: [{
       label: '% completado',
       data: items.map((m) => m.pct),
-      backgroundColor: programa === 'operativo' ? COLORS.blueLight : COLORS.navyMid,
-      borderRadius: 6,
+      backgroundColor: COLORS.brandLight,
+      borderRadius: 8,
       borderSkipped: false,
     }],
   };
-}
+});
 
-function modulosOptionsFor(programa) {
-  const total = data.value?.porPrograma?.[programa]?.total ?? 0;
+const modulosBarOptions = computed(() => {
+  const total = programaMetrics.value?.total ?? 0;
+  const programa = activeTab.value;
   return {
     ...barOptions('', true),
     scales: {
@@ -255,28 +518,24 @@ function modulosOptionsFor(programa) {
           label: (ctx) => {
             const items = data.value.progresoPorModuloPorPrograma[programa];
             const m = items[ctx.dataIndex];
-            return `${m.completados}/${total} colaboradores (${m.pct}%)`;
+            return `${m.completados}/${total} (${m.pct}%)`;
           },
         },
       },
     },
   };
-}
-
-// ── Gráfica por área ────────────────────────────────────────────────
-const areasChart = computed(() => {
-  if (!data.value?.porArea?.length) return null;
-  const areas = data.value.porArea;
-  return {
-    labels: areas.map((a) => a.nombre),
-    datasets: [
-      { label: 'Completos',   data: areas.map((a) => a.completados),                     backgroundColor: COLORS.success,  borderRadius: 6 },
-      { label: 'En curso',    data: areas.map((a) => a.enCurso),                         backgroundColor: COLORS.warning,  borderRadius: 6 },
-      { label: 'Sin iniciar', data: areas.map((a) => a.total - a.completados - a.enCurso), backgroundColor: COLORS.bluePale, borderRadius: 6 },
-    ],
-  };
 });
-const areasOptions = barOptions('', false);
+
+const programaDistrib = computed(() => {
+  const m = programaMetrics.value;
+  if (!m?.total) return [];
+  const t = m.total;
+  return [
+    { label: 'Completados', count: m.completados, pct: Math.round((m.completados / t) * 100), tone: '' },
+    { label: 'En curso', count: m.enCurso, pct: Math.round((m.enCurso / t) * 100), tone: 'db-area-row__fill--warn' },
+    { label: 'Sin iniciar', count: m.sinIniciar, pct: Math.round((m.sinIniciar / t) * 100), tone: 'db-area-row__fill--muted' },
+  ];
+});
 
 function truncate(str, len) {
   return str.length > len ? `${str.slice(0, len)}…` : str;
@@ -294,144 +553,497 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* ── Tabs / Filtros ─────────────────────────────────────────────── */
+.db {
+  --db-bg: #eff6ff;
+  --db-card: #ffffff;
+  --db-brand: #0f2744;
+  --db-brand-mid: #1e3a5f;
+  --db-brand-light: #2563eb;
+  --db-text: #0f2744;
+  --db-muted: #64748b;
+  --db-border: rgba(15, 39, 68, 0.08);
+  --db-shadow: 0 4px 24px rgba(15, 39, 68, 0.08);
+  margin: -1.75rem -2rem 0;
+  padding: 1.75rem 2rem 2.5rem;
+  min-height: calc(100% + 1.75rem);
+  background: var(--db-bg);
+}
+
+.db-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.db-header__title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--db-text);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.db-header__sub {
+  margin: 0.25rem 0 0;
+  color: var(--db-muted);
+  font-size: 0.9rem;
+}
+
 .db-tabs {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-  background: #fff;
-  border: 1px solid var(--border, rgba(30,58,95,0.1));
+  gap: 0.35rem;
+  background: var(--db-card);
+  border: 1px solid var(--db-border);
   border-radius: 12px;
-  padding: 0.375rem;
-  width: fit-content;
+  padding: 0.3rem;
+  box-shadow: var(--db-shadow);
 }
 
 .db-tab {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.5rem 1.1rem;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
   border: none;
-  border-radius: 8px;
-  font-size: 0.875rem;
+  border-radius: 9px;
+  font-size: 0.8125rem;
   font-weight: 600;
   font-family: inherit;
-  color: var(--slate-500, #64748b);
+  color: var(--db-muted);
   background: transparent;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
-  white-space: nowrap;
 }
 
 .db-tab:hover {
-  background: var(--surface-2, #f4f7fb);
-  color: var(--blue-900, #1e3a5f);
+  color: var(--db-brand);
+  background: #dbeafe;
 }
 
 .db-tab--active {
-  background: var(--blue-600, #2563eb);
+  background: var(--db-brand);
   color: #fff;
 }
 
 .db-tab--active:hover {
-  background: var(--blue-700, #1d4ed8);
+  background: var(--db-brand-mid);
+  color: #fff;
 }
 
-/* ── Ventana principal ──────────────────────────────────────────── */
-.db-window {
-  background: #fff;
-  border: 1px solid var(--border, rgba(30,58,95,0.1));
+.db-state {
+  color: var(--db-muted);
+  padding: 2rem;
+  text-align: center;
+}
+
+.db-state--error {
+  color: #dc2626;
+}
+
+/* KPIs */
+.db-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.db-kpi {
+  background: var(--db-card);
+  border: 1px solid var(--db-border);
   border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(30,58,95,0.05);
+  padding: 1.15rem 1.25rem;
+  box-shadow: var(--db-shadow);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.db-window--general {
-  border-top: 3px solid #64748b;
+.db-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(15, 39, 68, 0.12);
 }
 
-.db-window--operativo {
-  border-top: 3px solid #2563eb;
+.db-kpi--primary {
+  background: linear-gradient(145deg, #0a1628 0%, #1e3a5f 100%);
+  border: none;
+  color: #fff;
 }
 
-.db-window--administrativo {
-  border-top: 3px solid #4338ca;
+.db-kpi--primary .db-kpi__label,
+.db-kpi--primary .db-kpi__sub {
+  color: rgba(255, 255, 255, 0.75);
 }
 
-/* ── KPI row ────────────────────────────────────────────────────── */
-.db-window__kpis {
+.db-kpi--primary .db-kpi__value {
+  color: #fff;
+}
+
+.db-kpi--primary .db-kpi__icon {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.db-kpi__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.db-kpi__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--db-muted);
+}
+
+.db-kpi__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #dbeafe;
+  color: var(--db-brand-mid);
+}
+
+.db-kpi__icon--success {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.db-kpi__icon--warn {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.db-kpi__icon--danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.db-kpi__icon--muted {
+  background: #f3f4f6;
+  color: var(--db-muted);
+}
+
+.db-kpi__value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--db-text);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.db-kpi__trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.db-kpi__trend--up {
+  color: #1d4ed8;
+}
+
+.db-kpi--primary .db-kpi__trend--up {
+  color: #bfdbfe;
+}
+
+.db-kpi__trend--down {
+  color: #f59e0b;
+}
+
+.db-kpi__sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--db-muted);
+}
+
+/* Grid */
+.db-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-/* Acento de color en KPIs por programa */
-.metric-card--operativo {
-  border-left: 3px solid #3b82f6;
-}
-
-.metric-card--administrativo {
-  border-left: 3px solid #4338ca;
-}
-
-/* ── Fila de gráficas ───────────────────────────────────────────── */
-.db-charts-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(12, 1fr);
   gap: 1rem;
 }
 
-.db-chart-card {
-  background: var(--surface-2, #f8fafc);
-  border: 1px solid var(--border, rgba(30,58,95,0.08));
-  border-radius: 12px;
-  padding: 1rem 1.125rem;
+.db-card {
+  grid-column: span 4;
+  background: var(--db-card);
+  border: 1px solid var(--db-border);
+  border-radius: 16px;
+  padding: 1.25rem;
+  box-shadow: var(--db-shadow);
 }
 
-.db-chart-card--sm { flex: 0 0 300px; }
-.db-chart-card--lg { flex: 1; }
+.db-card--wide {
+  grid-column: span 8;
+}
 
-.db-chart-title {
-  font-size: 0.875rem;
+.db-card--gauge {
+  grid-column: span 4;
+}
+
+.db-card--bars {
+  grid-column: span 6;
+}
+
+.db-grid--program .db-card--wide {
+  grid-column: span 8;
+}
+
+.db-grid--program .db-card--gauge,
+.db-grid--program .db-card:not(.db-card--wide):not(.db-card--bars) {
+  grid-column: span 4;
+}
+
+.db-card__head {
+  margin-bottom: 1rem;
+}
+
+.db-card__head h3 {
+  margin: 0;
+  font-size: 0.9375rem;
   font-weight: 700;
-  color: var(--blue-900, #1e3a5f);
-  margin: 0 0 0.875rem;
+  color: var(--db-text);
 }
 
-.db-chart-wrap {
+.db-card__hint {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--db-muted);
+}
+
+.db-chart {
   position: relative;
   width: 100%;
+}
+
+.db-chart--line {
+  height: 280px;
+}
+
+.db-chart--donut {
+  height: 200px;
+}
+
+.db-chart--radar,
+.db-chart--bar {
   height: 260px;
 }
 
-.db-chart-wrap--donut {
-  height: 240px;
-}
-
-.db-chart-wrap--tall {
+.db-chart--tall {
   height: 320px;
 }
 
-/* ── Responsive ─────────────────────────────────────────────────── */
-@media (max-width: 900px) {
-  .db-charts-row {
-    grid-template-columns: 1fr;
+.db-empty {
+  color: var(--db-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+/* Donut legend */
+.db-donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--db-border);
+}
+
+.db-donut-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--db-muted);
+}
+
+.db-donut-legend__item strong {
+  margin-left: auto;
+  color: var(--db-text);
+  font-weight: 700;
+}
+
+.db-donut-legend__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Gauge */
+.db-gauge-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.db-gauge {
+  position: relative;
+  width: 100%;
+  max-width: 220px;
+}
+
+.db-gauge__svg {
+  width: 100%;
+  display: block;
+}
+
+.db-gauge__track {
+  stroke: #dbeafe;
+}
+
+.db-gauge__fill {
+  stroke: var(--db-brand-light);
+  transition: stroke-dasharray 0.6s ease;
+}
+
+.db-gauge__center {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.db-gauge__num {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--db-brand);
+  line-height: 1;
+}
+
+.db-gauge__lbl {
+  font-size: 0.75rem;
+  color: var(--db-muted);
+}
+
+.db-gauge__split {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--db-border);
+  gap: 1rem;
+}
+
+.db-gauge__split--3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  text-align: center;
+}
+
+.db-gauge__split-label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--db-muted);
+  margin-bottom: 0.2rem;
+}
+
+.db-gauge__split strong {
+  font-size: 1.125rem;
+  color: var(--db-text);
+}
+
+/* Area bars */
+.db-area-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.db-area-row__meta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.db-area-row__name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--db-text);
+}
+
+.db-area-row__pct {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--db-brand);
+}
+
+.db-area-row__track {
+  height: 8px;
+  background: #dbeafe;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.db-area-row__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--db-brand-mid), var(--db-brand-light));
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+.db-area-row__fill--warn {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.db-area-row__fill--muted {
+  background: #cbd5e1;
+}
+
+.db-area-row__count {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+  color: var(--db-muted);
+}
+
+@media (max-width: 1200px) {
+  .db-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .db-card,
+  .db-card--wide,
+  .db-card--gauge,
+  .db-card--bars {
+    grid-column: span 6;
   }
 }
 
-@media (max-width: 600px) {
-  .db-window {
-    padding: 1rem;
+@media (max-width: 768px) {
+  .db-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .db-card,
+  .db-card--wide,
+  .db-card--gauge,
+  .db-card--bars {
+    grid-column: span 12;
+  }
+
+  .db-header {
+    flex-direction: column;
   }
 
   .db-tabs {
     width: 100%;
-  }
-
-  .db-tab {
-    flex: 1;
-    justify-content: center;
+    overflow-x: auto;
   }
 }
 </style>

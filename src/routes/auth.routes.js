@@ -10,6 +10,11 @@ router.post('/ingreso', [
   body('password').optional(),
 ], ctrl.ingreso);
 
+router.post('/establecer-password', [
+  body('nomina').trim().notEmpty(),
+  body('passwordNueva').isLength({ min: 8 }),
+], ctrl.establecerPassword);
+
 router.post('/login', [
   body('nomina').trim().notEmpty().withMessage('Nómina requerida.'),
   body('password').notEmpty().withMessage('Contraseña requerida.'),

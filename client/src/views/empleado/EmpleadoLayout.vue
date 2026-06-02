@@ -59,7 +59,7 @@
               </a>
               <a href="#modulos" @click.prevent="scrollTo('modulos')">
                 <LayoutGrid :size="16" stroke-width="2" />
-                Módulos
+                {{ route.params.alcance === 'puesto' ? 'Checklist' : 'Módulos' }}
               </a>
               <a href="#contacto" @click.prevent="scrollTo('contacto')">
                 <MessageCircle :size="16" stroke-width="2" />
