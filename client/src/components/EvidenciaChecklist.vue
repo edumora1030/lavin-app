@@ -4,7 +4,7 @@
       <thead>
         <tr>
           <th class="col-num">#</th>
-          <th>Módulo</th>
+          <th class="col-modulo">Módulo</th>
           <th class="col-estado">Estado</th>
           <th class="col-fecha">Fecha</th>
           <th class="col-cal">Calificación</th>
@@ -20,7 +20,7 @@
           <td class="col-estado">
             <span class="estado-cell" :class="{ 'is-done': modulo.completado }">
               <span class="estado-cell__icon" aria-hidden="true">
-                <Check v-if="modulo.completado" :size="11" stroke-width="3" />
+                <Check v-if="modulo.completado" :size="10" stroke-width="3" />
               </span>
               {{ modulo.completado ? 'Completado' : 'Pendiente' }}
             </span>
@@ -73,37 +73,40 @@ function calClass(modulo) {
 .evidencia-checklist {
   overflow-x: auto;
   border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border-radius: 0;
   background: #fff;
 }
 
 .evidencia-checklist__table {
   width: 100%;
-  min-width: 560px;
+  min-width: 520px;
   border-collapse: collapse;
   font-size: 0.8125rem;
   table-layout: fixed;
 }
 
+/* encabezado navy */
 .evidencia-checklist__table thead tr {
   background: #1e3a5f;
 }
 
 .evidencia-checklist__table th {
-  padding: 0.5rem 0.65rem;
+  padding: 0.45rem 0.625rem;
   text-align: left;
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: #fff;
 }
 
+/* filas */
 .evidencia-checklist__table td {
-  padding: 0.5rem 0.65rem;
+  padding: 0.45rem 0.625rem;
   text-align: left;
   border-bottom: 1px solid #e2e8f0;
   color: #334155;
+  font-size: 0.8125rem;
   vertical-align: middle;
 }
 
@@ -115,41 +118,22 @@ function calClass(modulo) {
   background: #f8fafc;
 }
 
-.col-num {
-  width: 36px;
-  text-align: center !important;
-}
+/* anchos columna — replica las proporciones del PDF */
+.col-num   { width: 32px; text-align: center !important; }
+.col-modulo{ /* toma el espacio restante */ word-break: break-word; }
+.col-estado{ width: 105px; }
+.col-fecha { width: 90px;  white-space: nowrap; }
+.col-cal   { width: 130px; }
 
-.col-estado {
-  width: 120px;
-}
+/* colores calificación */
+.col-cal.is-ok      { color: #16a34a; font-weight: 600; }
+.col-cal.is-pending { color: #b45309; }
 
-.col-fecha {
-  width: 100px;
-  white-space: nowrap;
-}
-
-.col-cal {
-  width: 130px;
-}
-
-.col-modulo {
-  word-break: break-word;
-}
-
-.col-cal.is-ok {
-  color: #16a34a;
-  font-weight: 600;
-}
-
-.col-cal.is-pending {
-  color: #b45309;
-}
-
+/* celda de estado con ícono circular */
 .estado-cell {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
   font-size: 0.8125rem;
   color: #64748b;
 }
@@ -163,8 +147,8 @@ function calClass(modulo) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   border: 1.5px solid #cbd5e1;
   color: transparent;
