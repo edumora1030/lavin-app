@@ -77,8 +77,12 @@ Para que arranque con Windows, usa **pm2-windows-startup** o `nssm`.
 
 ```bash
 npm run dev
-# Levanta API (:3000) + Vue con hot-reload y abre http://localhost:5173
+# Levanta API + Vue en un solo puerto
+# Local:    http://localhost:3000
+# Red WiFi: http://TU-IP-LOCAL:3000  (la consola imprime las IPs al arrancar)
 ```
+
+En la misma red WiFi, comparte `http://TU-IP-LOCAL:3000`. No uses el puerto 5173 para compartir; ese es solo el servidor interno de Vite.
 
 Solo un servicio, si lo necesitas por separado:
 

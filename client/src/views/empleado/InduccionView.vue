@@ -86,9 +86,13 @@
         </div>
       </section>
 
-      <section id="modulos" class="induccion-course-section">
+      <section
+        id="modulos"
+        class="induccion-course-section"
+        :class="{ 'induccion-course-section--finished': showFinishedLayout }"
+      >
         <div class="modules-section-header">
-          <p class="section-label">Programa</p>
+          <p v-if="!showFinishedLayout" class="section-label">Programa</p>
           <h2 class="section-title">
             {{ alcance === 'puesto' ? 'Checklist de inducción al puesto' : 'Tus módulos de inducción' }}
           </h2>
@@ -106,13 +110,16 @@
         :progress-note="progressNote"
         :comentarios-inicial="checklistComentarios"
         :temas-inicial="checklistTemas"
+        :ya-notificado="solicitudEstado('induccion_puesto_completada') !== null"
         @refresh="refreshProgreso"
+        @finalizada="onInduccionPuestoFinalizada"
       />
 
-      <InduccionCourse
-        v-else
-        ref="courseRef"
+      <template v-else>
+        <InduccionCourse
+          ref="courseRef"
           embedded
+          :completion-only="showFinishedLayout"
           :modulos="modulos"
           :progreso="progreso"
           :pct="pct"
@@ -123,53 +130,104 @@
           @module-change="activeModuloId = $event"
         />
 
-        <div v-if="induccionCompleta" class="post-induccion">
-          <div class="post-induccion__header">
-            <CircleCheck :size="28" stroke-width="2" />
-            <div>
-              <h3>¡Felicidades! Completaste tu inducción</h3>
-              <p>Solicita los siguientes pasos y el equipo de RR.HH. recibirá tu aviso para coordinarte.</p>
-            </div>
-          </div>
+        <div v-if="showFinishedLayout" class="post-induccion">
+          <header class="post-induccion__head">
+            <h3>Solicita tu recorrido y sistemas</h3>
+            <p>Solicita los siguientes pasos y el equipo de RR.HH. recibirá tu aviso para coordinarte.</p>
+          </header>
 
           <div class="post-induccion__actions">
             <button
               type="button"
-              class="post-induccion__btn"
-              :class="{ 'is-sent': solicitudEstado('recorrido_planta') === 'pendiente', 'is-done': solicitudEstado('recorrido_planta') === 'atendida' }"
+              class="post-step-card post-step-card--planta"
+              :class="{
+                'is-sent': solicitudEstado('recorrido_planta') === 'pendiente',
+                'is-done': solicitudEstado('recorrido_planta') === 'atendida',
+              }"
               :disabled="solicitando === 'recorrido_planta' || solicitudEstado('recorrido_planta') !== null"
               @click="solicitarPaso('recorrido_planta')"
             >
-              <span class="post-induccion__btn-icon">
-                <Factory :size="22" />
+              <span class="post-step-card__icon">
+                <Factory :size="22" stroke-width="1.75" />
               </span>
-              <span class="post-induccion__btn-text">
+              <span class="post-step-card__body">
                 <strong>Recorrido en planta</strong>
                 <span>{{ labelSolicitud('recorrido_planta') }}</span>
+              </span>
+              <span class="post-step-card__arrow" aria-hidden="true">
+                <ChevronRight :size="18" />
               </span>
             </button>
 
             <button
               type="button"
-              class="post-induccion__btn"
-              :class="{ 'is-sent': solicitudEstado('sistemas') === 'pendiente', 'is-done': solicitudEstado('sistemas') === 'atendida' }"
+              class="post-step-card post-step-card--sistemas"
+              :class="{
+                'is-sent': solicitudEstado('sistemas') === 'pendiente',
+                'is-done': solicitudEstado('sistemas') === 'atendida',
+              }"
               :disabled="solicitando === 'sistemas' || solicitudEstado('sistemas') !== null"
               @click="solicitarPaso('sistemas')"
             >
-              <span class="post-induccion__btn-icon">
-                <Monitor :size="22" />
+              <span class="post-step-card__icon">
+                <Monitor :size="22" stroke-width="1.75" />
               </span>
-              <span class="post-induccion__btn-text">
+              <span class="post-step-card__body">
                 <strong>Sistemas</strong>
                 <span>{{ labelSolicitud('sistemas') }}</span>
               </span>
+              <span class="post-step-card__arrow" aria-hidden="true">
+                <ChevronRight :size="18" />
+              </span>
             </button>
           </div>
+
+          <div id="mis-dudas" class="mis-dudas-block mis-dudas-block--finished">
+            <header class="mis-dudas-block__head">
+              <CircleHelp :size="20" stroke-width="2" />
+              <div>
+                <h2>Mis dudas enviadas</h2>
+                <p>Aquí puedes ver las respuestas de RR.HH. a tus preguntas.</p>
+              </div>
+            </header>
+            <ul v-if="misDudas.length" class="mis-dudas-list">
+              <li v-for="d in misDudas" :key="d.id">
+                <button
+                  type="button"
+                  class="mis-dudas-row"
+                  :class="{ 'is-open': dudaExpandida === d.id, 'is-respondida': d.estado === 'respondida' }"
+                  @click="toggleDuda(d.id)"
+                >
+                  <span class="mis-dudas-row__main">
+                    <span class="mis-dudas-row__meta">
+                      <span class="mis-dudas-row__modulo">{{ d.modulo?.nombre }}</span>
+                      <span
+                        class="mis-dudas-row__badge"
+                        :class="d.estado === 'respondida' ? 'badge--ok' : 'badge--pending'"
+                      >
+                        {{ d.estado === 'respondida' ? 'Respondida' : 'Pendiente' }}
+                      </span>
+                    </span>
+                    <span class="mis-dudas-row__pregunta">{{ d.texto }}</span>
+                  </span>
+                  <ChevronRight :size="18" class="mis-dudas-row__chevron" />
+                </button>
+                <div v-if="dudaExpandida === d.id" class="mis-dudas-row__respuesta">
+                  <template v-if="d.respuesta">
+                    <span class="mis-dudas-row__respuesta-label">Respuesta de RR.HH.</span>
+                    <p>{{ d.respuesta }}</p>
+                  </template>
+                  <p v-else class="mis-dudas-row__pendiente">RR.HH. aún no ha respondido tu duda.</p>
+                </div>
+              </li>
+            </ul>
+            <p v-else class="mis-dudas-empty">Aún no has enviado dudas durante tu inducción.</p>
+          </div>
         </div>
+      </template>
       </section>
 
-      <!-- ── MIS DUDAS ─────────────────────────────────── -->
-      <section v-if="misDudas.length" id="mis-dudas" class="mis-dudas-block">
+      <section v-if="!showFinishedLayout && misDudas.length" id="mis-dudas" class="mis-dudas-block">
         <div class="mis-dudas-block__inner">
           <header class="mis-dudas-block__head">
             <CircleHelp :size="20" stroke-width="2" />
@@ -236,7 +294,7 @@
       </section>
   </div>
 
-  <AppModal v-if="examenModal" wide exam @close="examenModal = null">
+  <AppModal v-if="examenModal" wide exam @close="cerrarExamenModal">
       <div class="modal-exam">
         <header class="modal-exam__head">
           <h2>{{ examenModal.titulo }}</h2>
@@ -253,7 +311,7 @@
             </div>
           </div>
           <footer class="modal-exam__foot modal-actions">
-            <button type="button" class="btn secondary" @click="examenModal = null">Cancelar</button>
+            <button type="button" class="btn secondary" @click="cerrarExamenModal">Cancelar</button>
             <button type="submit" class="btn">Enviar examen</button>
           </footer>
         </form>
@@ -285,7 +343,7 @@ import InduccionCourse from '../../components/InduccionCourse.vue';
 import PuestoInduccionChecklist from '../../components/PuestoInduccionChecklist.vue';
 import AppModal from '../../components/AppModal.vue';
 import { useAppAlert } from '../../composables/useAppAlert';
-import { CircleCheck, Factory, Monitor, Building2, Briefcase, Layers, CircleHelp, ChevronRight, Play } from '@lucide/vue';
+import { Factory, Monitor, Building2, Briefcase, Layers, CircleHelp, ChevronRight, Play } from '@lucide/vue';
 
 const { showAlert } = useAppAlert();
 
@@ -312,6 +370,15 @@ const respuestas = ref({});
 const dudaModal = ref(null);
 const dudaTexto = ref('');
 const misDudas = ref([]);
+const dudaExpandida = ref(null);
+
+const showFinishedLayout = computed(
+  () => alcance.value === 'empresa' && induccionCompleta.value && !modulesLoading.value
+);
+
+function toggleDuda(id) {
+  dudaExpandida.value = dudaExpandida.value === id ? null : id;
+}
 
 async function cargarMisDudas() {
   try {
@@ -453,6 +520,14 @@ async function refreshProgreso() {
   }
 }
 
+function onInduccionPuestoFinalizada(notificacion) {
+  if (notificacion) {
+    const idx = solicitudes.value.findIndex((n) => n.tipo === 'induccion_puesto_completada');
+    if (idx >= 0) solicitudes.value[idx] = notificacion;
+    else solicitudes.value.unshift(notificacion);
+  }
+}
+
 async function solicitarPaso(tipo) {
   solicitando.value = tipo;
   try {
@@ -512,6 +587,11 @@ async function enviarDuda() {
   });
 }
 
+function cerrarExamenModal() {
+  examenModal.value = null;
+  courseRef.value?.resetExamenAutomatico?.();
+}
+
 async function openExamen(moduloId) {
   const examen = await api.get(`/api/examenes/${moduloId}`);
   if (examen.yaAprobado) {
@@ -540,10 +620,14 @@ async function submitExamen() {
   });
   examenModal.value = null;
   examenModuloId.value = null;
+  if (!r.aprobado) {
+    courseRef.value?.resetExamenAutomatico?.();
+  }
+  await refreshProgreso();
   showAlert({
     title: r.aprobado ? '¡Examen aprobado!' : 'Examen no aprobado',
     message: r.aprobado
-      ? (r.moduloCompletado ? 'Módulo finalizado. Puedes continuar con el siguiente.' : 'Puedes continuar con el siguiente módulo.')
+      ? 'Módulo completado. Usa el botón «Siguiente módulo» en esta pantalla para continuar.'
       : 'Revisa el contenido e inténtalo de nuevo.',
     variant: r.aprobado ? 'success' : 'error',
     score: {
@@ -553,7 +637,6 @@ async function submitExamen() {
       aprobado: r.aprobado,
     },
   });
-  await refreshProgreso();
 }
 
 watch(alcance, () => loadData({ silent: true }));
@@ -883,30 +966,33 @@ onMounted(() => {
   margin-bottom: 1.25rem;
 }
 
+.induccion-course-section--finished .modules-section-header {
+  margin-bottom: 1rem;
+}
+
+.induccion-course-section--finished .section-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--blue-900);
+  margin: 0;
+}
+
 .post-induccion {
   margin-top: 1.5rem;
-  padding: 1.5rem;
-  background: linear-gradient(135deg, #ecfdf5 0%, var(--white) 55%);
-  border: 1px solid rgba(22, 163, 74, 0.15);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
 }
 
-.post-induccion__header {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-  margin-bottom: 1.25rem;
-  color: #15803d;
+.post-induccion__head {
+  margin-bottom: 1rem;
 }
 
-.post-induccion__header h3 {
+.post-induccion__head h3 {
   margin: 0 0 0.35rem;
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
   color: var(--blue-900);
 }
 
-.post-induccion__header p {
+.post-induccion__head p {
   margin: 0;
   font-size: 0.875rem;
   color: var(--slate-500);
@@ -917,75 +1003,103 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+  margin-bottom: 1.75rem;
 }
 
-.post-induccion__btn {
+.post-step-card {
   display: flex;
   align-items: center;
   gap: 1rem;
+  width: 100%;
   padding: 1rem 1.125rem;
-  border: 1.5px solid rgba(30, 58, 95, 0.1);
+  border: 1px solid rgba(30, 58, 95, 0.1);
   border-radius: 12px;
   background: var(--white);
   text-align: left;
   cursor: pointer;
   font-family: inherit;
+  box-shadow: 0 2px 8px rgba(30, 58, 95, 0.05);
   transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
-.post-induccion__btn:hover:not(:disabled) {
-  border-color: var(--blue-300);
-  box-shadow: var(--shadow-card);
+.post-step-card:hover:not(:disabled) {
   transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(30, 58, 95, 0.08);
 }
 
-.post-induccion__btn:disabled {
+.post-step-card:disabled {
   cursor: default;
+  opacity: 0.92;
 }
 
-.post-induccion__btn.is-sent {
-  border-color: rgba(37, 99, 235, 0.25);
-  background: var(--blue-50);
-}
-
-.post-induccion__btn.is-done {
-  border-color: rgba(22, 163, 74, 0.25);
-  background: #f0fdf4;
-}
-
-.post-induccion__btn-icon {
+.post-step-card__icon {
   flex-shrink: 0;
   width: 3rem;
   height: 3rem;
-  border-radius: 12px;
-  background: var(--blue-50);
-  color: var(--blue-600);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.post-induccion__btn.is-done .post-induccion__btn-icon {
-  background: #dcfce7;
-  color: #15803d;
+.post-step-card--planta .post-step-card__icon {
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--blue-600);
 }
 
-.post-induccion__btn-text {
+.post-step-card--planta .post-step-card__arrow {
+  background: var(--blue-600);
+  color: var(--white);
+}
+
+.post-step-card--sistemas .post-step-card__icon {
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+}
+
+.post-step-card--sistemas .post-step-card__arrow {
+  background: #16a34a;
+  color: var(--white);
+}
+
+.post-step-card__body {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
+  gap: 0.15rem;
 }
 
-.post-induccion__btn-text strong {
+.post-step-card__body strong {
   font-size: 0.9375rem;
+  font-weight: 700;
   color: var(--blue-900);
 }
 
-.post-induccion__btn-text span {
+.post-step-card__body span {
   font-size: 0.8125rem;
   color: var(--slate-500);
   line-height: 1.4;
+}
+
+.post-step-card__arrow {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.post-step-card.is-sent {
+  border-color: rgba(37, 99, 235, 0.2);
+  background: var(--blue-50);
+}
+
+.post-step-card.is-done {
+  border-color: rgba(22, 163, 74, 0.2);
+  background: #f0fdf4;
 }
 
 /* ── Contacto ── */
@@ -995,12 +1109,27 @@ onMounted(() => {
   scroll-margin-top: 5rem;
 }
 
+.mis-dudas-block--finished {
+  margin-top: 0;
+  padding: 1.5rem;
+  background: var(--white);
+  border: 1px solid rgba(30, 58, 95, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(30, 58, 95, 0.05);
+}
+
 .mis-dudas-block__inner {
   background: #fff;
   border: 1px solid var(--border, rgba(30,58,95,0.1));
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(30,58,95,0.05);
+}
+
+.mis-dudas-empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--slate-500);
 }
 
 .mis-dudas-block__head {
@@ -1030,7 +1159,106 @@ onMounted(() => {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
+  gap: 0.75rem;
+}
+
+.mis-dudas-block--finished .mis-dudas-list {
+  gap: 0.5rem;
+}
+
+.mis-dudas-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 1px solid rgba(30, 58, 95, 0.1);
+  border-radius: 10px;
+  background: var(--white);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.mis-dudas-row:hover {
+  border-color: rgba(37, 99, 235, 0.25);
+  background: #fafbfc;
+}
+
+.mis-dudas-row.is-open .mis-dudas-row__chevron {
+  transform: rotate(90deg);
+}
+
+.mis-dudas-row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mis-dudas-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mis-dudas-row__modulo {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--slate-500);
+}
+
+.mis-dudas-row__badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.mis-dudas-row__pregunta {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--blue-900);
+  line-height: 1.4;
+}
+
+.mis-dudas-row__chevron {
+  flex-shrink: 0;
+  color: var(--slate-400);
+  transition: transform 0.15s;
+}
+
+.mis-dudas-row__respuesta {
+  margin: 0.35rem 0 0.5rem;
+  padding: 0.75rem 1rem 0.75rem 1.25rem;
+  border-left: 3px solid #22c55e;
+  background: #f8fafc;
+  border-radius: 0 8px 8px 0;
+}
+
+.mis-dudas-row__respuesta-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #15803d;
+  margin-bottom: 0.35rem;
+}
+
+.mis-dudas-row__respuesta p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--blue-900);
+  line-height: 1.5;
+}
+
+.mis-dudas-row__pendiente {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--slate-500);
+  font-style: italic;
 }
 
 .mis-dudas-item {
@@ -1204,6 +1432,11 @@ onMounted(() => {
 @media (max-width: 640px) {
   .post-induccion__actions {
     grid-template-columns: 1fr;
+  }
+
+  .post-step-card__arrow {
+    width: 2rem;
+    height: 2rem;
   }
 }
 

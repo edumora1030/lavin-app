@@ -1,7 +1,7 @@
 <template>
   <div class="course-shell" :class="{ 'course-shell--viewer': isSplit, 'course-shell--embedded': embedded }">
     <!-- Vista principal: progreso + lista de módulos -->
-    <div v-if="embedded && !isSplit" class="course-dashboard">
+    <div v-if="embedded && !isSplit && showEmbeddedDashboard" class="course-dashboard">
       <div class="course-progress">
         <div class="course-progress__head">
           <span>Tu progreso</span>
@@ -122,8 +122,9 @@
           <p>{{ activeModulo.descripcion }}</p>
         </header>
 
-        <div v-if="isModuloComplete(activeModulo.id)" class="course-panel__done">
-          Encuesta completada. ¡Gracias por tu retroalimentación!
+        <div v-if="isModuloComplete(activeModulo.id)" class="course-panel__done course-panel__done--encuesta">
+          <Check :size="18" stroke-width="2.5" />
+          <span>Encuesta completada. ¡Gracias por tu retroalimentación!</span>
         </div>
         <form v-else class="course-panel__form" @submit.prevent="enviarEncuesta">
           <div v-for="p in encuestaPreguntas" :key="p.id" class="form-group">
@@ -161,29 +162,37 @@
           @ended="onVideoEnded"
         />
 
+        <figure v-else-if="moduloImagenSrc" class="course-panel__figure">
+          <img
+            :src="moduloImagenSrc"
+            alt="Organigrama general de Industrias Lavín"
+            class="course-panel__image"
+          >
+        </figure>
+
         <div v-else class="course-panel__no-video">
           <PlayCircle :size="40" stroke-width="1.5" />
           <p>El video de este módulo estará disponible pronto.</p>
         </div>
 
-        <div v-if="videoVisto || isModuloComplete(activeModulo.id)" class="course-panel__completed">
+        <div v-if="contenidoVisto || isModuloComplete(activeModulo.id)" class="course-panel__completed">
           <Check :size="16" />
-          {{ isModuloComplete(activeModulo.id) ? 'Módulo completado' : 'Video completado' }}
+          {{ contenidoCompletadoLabel }}
         </div>
 
         <footer class="course-panel__footer">
           <button type="button" class="btn-text" @click="$emit('duda', activeModulo)">¿Tienes dudas?</button>
           <div class="course-panel__footer-actions">
             <button
-              v-if="activeModulo.examenes?.length"
+              v-if="isModuloComplete(activeModulo.id) && haySiguienteModulo"
               type="button"
-              class="btn secondary"
-              @click="$emit('examen', activeModulo.id)"
+              class="btn btn-primary"
+              @click="goToNextModulo"
             >
-              Realizar examen
+              Siguiente módulo
             </button>
             <button
-              v-if="!isModuloComplete(activeModulo.id) && !moduloRequiereExamen(activeModulo)"
+              v-else-if="!isModuloComplete(activeModulo.id) && !moduloRequiereExamen(activeModulo)"
               type="button"
               class="btn btn-primary"
               :disabled="!canFinishModulo(activeModulo) || finalizandoModulo"
@@ -191,6 +200,12 @@
             >
               {{ finalizandoModulo ? 'Finalizando…' : 'Finalizar módulo' }}
             </button>
+            <p
+              v-else-if="moduloRequiereExamen(activeModulo) && contenidoVisto && !isModuloComplete(activeModulo.id)"
+              class="course-panel__exam-hint"
+            >
+              Responde la evaluación para continuar al siguiente módulo.
+            </p>
           </div>
         </footer>
       </div>
@@ -199,7 +214,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import {
   Check,
   ChevronRight,
@@ -221,6 +236,7 @@ const props = defineProps({
   pct: { type: Number, default: 0 },
   progressNote: { type: String, default: '' },
   embedded: { type: Boolean, default: false },
+  completionOnly: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['refresh', 'examen', 'duda', 'module-change']);
@@ -228,6 +244,11 @@ const emit = defineEmits(['refresh', 'examen', 'duda', 'module-change']);
 const { showAlert } = useAppAlert();
 
 const isSplit = ref(false);
+const showCompletionList = ref(false);
+
+const showEmbeddedDashboard = computed(
+  () => !props.completionOnly || showCompletionList.value
+);
 const activeModuloId = ref(null);
 const activeView = ref(null);
 
@@ -235,6 +256,7 @@ const encuestaPreguntas = ref([]);
 const encuestaRespuestas = ref({});
 const encuestaEnviando = ref(false);
 const finalizandoModulo = ref(false);
+const ultimoExamenAutoModuloId = ref(null);
 
 const activeModulo = computed(() =>
   props.modulos.find((m) => m.id === activeModuloId.value) || null
@@ -243,6 +265,11 @@ const activeModulo = computed(() =>
 const activeModuloIndex = computed(() =>
   props.modulos.findIndex((m) => m.id === activeModuloId.value)
 );
+
+const haySiguienteModulo = computed(() => {
+  const idx = activeModuloIndex.value;
+  return idx >= 0 && idx < props.modulos.length - 1;
+});
 
 function resolveModuloVideo(modulo) {
   if (!modulo) return { src: null, itemId: null };
@@ -265,6 +292,12 @@ const moduloVideo = computed(() =>
 );
 
 const moduloVideoSrc = computed(() => moduloVideo.value.src);
+
+const moduloImagenSrc = computed(() => {
+  const m = activeModulo.value;
+  if (!m || moduloVideoSrc.value) return null;
+  return getModuloMeta(m.slug).imagenUrl || null;
+});
 
 function isViewed(moduloId, itemId) {
   if (!itemId) return false;
@@ -295,14 +328,28 @@ function actionLabel(modulo, idx) {
     return isModuloComplete(modulo.id) ? 'Completado' : 'Responder encuesta';
   }
   if (isModuloComplete(modulo.id)) return 'Completado';
+  if (getModuloMeta(modulo.slug).imagenUrl) return 'Ver organigrama';
   return 'Ver video';
 }
 
-const videoVisto = computed(() => {
+const contenidoVisto = computed(() => {
   if (!activeModulo.value) return false;
-  const { itemId } = moduloVideo.value;
-  if (!itemId) return isModuloComplete(activeModulo.value.id);
-  return isViewed(activeModulo.value.id, itemId);
+  const m = activeModulo.value;
+  const { src, itemId } = moduloVideo.value;
+  if (!src && moduloImagenSrc.value) {
+    const items = m.items || [];
+    if (!items.length) return true;
+    return items.every((i) => isViewed(m.id, i.id));
+  }
+  if (!itemId) return isModuloComplete(m.id);
+  return isViewed(m.id, itemId);
+});
+
+const contenidoCompletadoLabel = computed(() => {
+  if (!activeModulo.value) return '';
+  if (isModuloComplete(activeModulo.value.id)) return 'Módulo completado';
+  if (moduloImagenSrc.value) return 'Organigrama revisado';
+  return 'Video completado';
 });
 
 function moduloRequiereExamen(modulo) {
@@ -313,17 +360,69 @@ function canFinishModulo(modulo) {
   if (modulo.slug === 'evaluacion-programa') return false;
   if (moduloRequiereExamen(modulo)) return false;
   const { src, itemId } = resolveModuloVideo(modulo);
-  if (!src) return true;
+  if (!src) {
+    if (getModuloMeta(modulo.slug).imagenUrl) {
+      const items = modulo.items || [];
+      if (!items.length) return true;
+      return items.every((i) => isViewed(modulo.id, i.id));
+    }
+    return true;
+  }
   if (!itemId) return true;
   return isViewed(modulo.id, itemId);
 }
 
+function goToNextModulo() {
+  const idx = activeModuloIndex.value;
+  if (idx < 0 || idx >= props.modulos.length - 1) return;
+  const next = props.modulos[idx + 1];
+  if (next && isModuloUnlocked(idx + 1)) {
+    openModulo(next, idx + 1);
+  }
+}
+
+function iniciarExamenAutomatico(modulo) {
+  if (!modulo?.id || ultimoExamenAutoModuloId.value === modulo.id) return;
+  ultimoExamenAutoModuloId.value = modulo.id;
+  emit('examen', modulo.id);
+}
+
+async function marcarContenidoEstatico(modulo) {
+  if (!modulo || isModuloComplete(modulo.id)) return;
+  const { src } = resolveModuloVideo(modulo);
+  if (src || !getModuloMeta(modulo.slug).imagenUrl) return;
+  await markItemsViewed(modulo);
+  emit('refresh');
+}
+
+async function revisarExamenAutomatico(modulo) {
+  if (!modulo || modulo.slug === 'evaluacion-programa' || isModuloComplete(modulo.id)) return;
+  if (!moduloRequiereExamen(modulo)) return;
+
+  const { src, itemId } = resolveModuloVideo(modulo);
+  if (!src) {
+    await markItemsViewed(modulo);
+    emit('refresh');
+    iniciarExamenAutomatico(modulo);
+    return;
+  }
+  if (itemId && isViewed(modulo.id, itemId)) {
+    iniciarExamenAutomatico(modulo);
+  }
+}
+
 function openModulo(modulo, idx = getModuloIndex(modulo.id)) {
   if (!isModuloUnlocked(idx)) return;
+  ultimoExamenAutoModuloId.value = null;
+  showCompletionList.value = false;
   activeModuloId.value = modulo.id;
   isSplit.value = true;
   emit('module-change', modulo.id);
   activeView.value = modulo.slug === 'evaluacion-programa' ? 'encuesta' : 'video';
+  nextTick(() => {
+    marcarContenidoEstatico(modulo);
+    revisarExamenAutomatico(modulo);
+  });
 }
 
 function closeSplit() {
@@ -331,6 +430,9 @@ function closeSplit() {
   activeModuloId.value = null;
   activeView.value = null;
   emit('module-change', null);
+  if (props.completionOnly) {
+    showCompletionList.value = true;
+  }
 }
 
 async function markItemsViewed(modulo) {
@@ -358,7 +460,15 @@ async function markVideoViewed() {
 
 async function onVideoEnded() {
   const m = activeModulo.value;
-  if (!m || m.slug === 'evaluacion-programa' || isModuloComplete(m.id) || moduloRequiereExamen(m)) return;
+  if (!m || m.slug === 'evaluacion-programa' || isModuloComplete(m.id)) return;
+
+  await markVideoViewed();
+
+  if (moduloRequiereExamen(m)) {
+    iniciarExamenAutomatico(m);
+    return;
+  }
+
   await finishModulo(m);
 }
 
@@ -408,7 +518,17 @@ function openModuloById(moduloId) {
   if (modulo && isModuloUnlocked(idx)) openModulo(modulo, idx);
 }
 
-defineExpose({ openModuloById, isModuloUnlocked, getModuloIndex });
+function resetExamenAutomatico() {
+  ultimoExamenAutoModuloId.value = null;
+}
+
+defineExpose({
+  openModuloById,
+  isModuloUnlocked,
+  getModuloIndex,
+  goToNextModulo,
+  resetExamenAutomatico,
+});
 
 watch(
   () => props.modulos,
@@ -417,6 +537,23 @@ watch(
       closeSplit();
     }
   }
+);
+
+watch(
+  () => props.completionOnly,
+  (soloFinal) => {
+    if (!soloFinal) {
+      showCompletionList.value = false;
+      return;
+    }
+    if (!props.modulos.length) return;
+    showCompletionList.value = false;
+    const evalMod =
+      props.modulos.find((m) => m.slug === 'evaluacion-programa') ||
+      props.modulos[props.modulos.length - 1];
+    if (evalMod) openModulo(evalMod, getModuloIndex(evalMod.id));
+  },
+  { immediate: true }
 );
 
 onMounted(async () => {
@@ -721,6 +858,22 @@ onMounted(async () => {
   line-height: 1.6;
 }
 
+.course-panel__figure {
+  margin: 0;
+  padding: 0.75rem;
+  background: #fff;
+  border: 1px solid rgba(30, 58, 95, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.course-panel__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
 .course-panel__no-video {
   display: flex;
   flex-direction: column;
@@ -761,6 +914,14 @@ onMounted(async () => {
   gap: 0.75rem;
 }
 
+.course-panel__exam-hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--slate-500);
+  max-width: 20rem;
+  line-height: 1.45;
+}
+
 .course-panel__empty {
   min-height: 280px;
   display: flex;
@@ -778,6 +939,21 @@ onMounted(async () => {
   border-radius: 12px;
   color: var(--blue-700);
   font-weight: 600;
+}
+
+.course-panel__done--encuesta {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  border-radius: 10px;
+  color: var(--blue-800);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
 .course-panel__form .form-group {

@@ -1,7 +1,11 @@
 /** Icon (kebab-case) and estimated duration per official empresa module slug. */
 export const MODULO_META = {
   'historia-mision-vision-valores': { icon: 'flag', duracion: '10 min' },
-  'organigrama-descripcion-puesto': { icon: 'network', duracion: '10 min' },
+  'organigrama-descripcion-puesto': {
+    icon: 'network',
+    duracion: '10 min',
+    imagenUrl: '/assets/organigrama-general.png',
+  },
   'terminos-laborales': { icon: 'file-text', duracion: '10 min' },
   'seguridad-higiene': { icon: 'hard-hat', duracion: '12 min' },
   'programas-empresa': { icon: 'graduation-cap', duracion: '10 min' },

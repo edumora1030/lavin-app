@@ -1,13 +1,28 @@
 require('dotenv').config();
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const express = require('express');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
+const DEV_VITE_PORT = parseInt(process.env.DEV_VITE_PORT || '5173', 10);
+
+function getLocalIPv4Addresses() {
+  const nets = os.networkInterfaces();
+  const ips = [];
+  for (const entries of Object.values(nets)) {
+    for (const net of entries || []) {
+      const isIPv4 = net.family === 'IPv4' || net.family === 4;
+      if (isIPv4 && !net.internal) ips.push(net.address);
+    }
+  }
+  return [...new Set(ips)];
+}
 
 // CORS restringido a red local
 const corsOrigins = (process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -48,17 +63,20 @@ const publicDir = path.join(__dirname, '..', 'public');
 const distDir = path.join(publicDir, 'dist');
 const useDist = fs.existsSync(path.join(distDir, 'index.html'));
 const isDev = process.env.NODE_ENV !== 'production';
-const devViteUrl = process.env.DEV_VITE_URL || 'http://localhost:5173';
-
 app.use('/assets', express.static(path.join(publicDir, 'assets')));
 app.use('/uploads', express.static(process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads')));
 
+let viteProxy;
 if (isDev) {
+  viteProxy = createProxyMiddleware({
+    target: `http://127.0.0.1:${DEV_VITE_PORT}`,
+    changeOrigin: true,
+    ws: true,
+  });
   app.use((req, res, next) => {
-    if (req.method !== 'GET') return next();
     if (req.path.startsWith('/api/')) return next();
     if (req.path.startsWith('/uploads/')) return next();
-    return res.redirect(302, `${devViteUrl}${req.originalUrl}`);
+    return viteProxy(req, res, next);
   });
 } else if (useDist) {
   app.use(express.static(distDir, {
@@ -99,6 +117,24 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: true, codigo: 'ERROR_INTERNO', mensaje: 'Error interno del servidor.', status: 500 });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✓ Plataforma RR.HH. Lavín escuchando en http://0.0.0.0:${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  const lanIps = getLocalIPv4Addresses();
+  if (isDev) {
+    console.log(`✓ App en desarrollo → http://localhost:${PORT}`);
+    if (lanIps.length) {
+      console.log('  Comparte en tu red WiFi:');
+      for (const ip of lanIps) console.log(`    http://${ip}:${PORT}`);
+    }
+    console.log(`  (Vite interno en :${DEV_VITE_PORT})`);
+  } else {
+    console.log(`✓ Plataforma escuchando en http://localhost:${PORT}`);
+    if (lanIps.length) {
+      console.log('  Red local:');
+      for (const ip of lanIps) console.log(`    http://${ip}:${PORT}`);
+    }
+  }
 });
+
+if (isDev && viteProxy) {
+  server.on('upgrade', viteProxy.upgrade);
+}

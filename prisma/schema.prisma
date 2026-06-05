@@ -51,6 +51,7 @@ enum TipoNotificacionRH {
   recorrido_planta
   sistemas
   recuperar_password
+  induccion_puesto_completada
 }
 
 enum EstadoNotificacionRH {

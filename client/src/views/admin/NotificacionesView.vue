@@ -2,7 +2,7 @@
   <div>
     <div class="admin-page-header">
       <h1>Notificaciones</h1>
-      <p>Solicitudes de empleados: recorrido en planta, sistemas y recuperación de contraseña.</p>
+      <p>Solicitudes de empleados: inducción al puesto, recorrido en planta, sistemas y recuperación de contraseña.</p>
     </div>
 
     <div class="admin-toolbar">
@@ -112,6 +112,7 @@ function tipoLabel(tipo) {
   if (tipo === 'recorrido_planta') return 'Recorrido en planta';
   if (tipo === 'sistemas') return 'Sistemas';
   if (tipo === 'recuperar_password') return 'Recuperar contraseña';
+  if (tipo === 'induccion_puesto_completada') return 'Inducción al puesto terminada';
   return tipo;
 }
 

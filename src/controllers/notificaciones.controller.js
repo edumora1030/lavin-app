@@ -3,7 +3,26 @@ const { Errores } = require('../utils/errores');
 const { auditar } = require('../utils/auditoria');
 const { MODULOS_EMPRESA } = require('../../scripts/programs-data');
 
-const TIPOS_VALIDOS = ['recorrido_planta', 'sistemas'];
+const TIPOS_EMPRESA = ['recorrido_planta', 'sistemas'];
+const TIPOS_PUESTO = ['induccion_puesto_completada'];
+
+async function checklistPuestoCompleto(usuarioId) {
+  const items = await prisma.checklistPuestoItem.findMany({
+    where: { activo: true },
+    select: { id: true },
+  });
+  if (!items.length) return false;
+
+  const completados = await prisma.checklistPuestoProgreso.count({
+    where: {
+      usuarioId,
+      completado: true,
+      itemId: { in: items.map((i) => i.id) },
+    },
+  });
+
+  return completados >= items.length;
+}
 
 async function modulosEmpresaCompletos(usuarioId) {
   const slugs = MODULOS_EMPRESA.map((m) => m.slug);
@@ -36,11 +55,23 @@ exports.misSolicitudes = async (req, res) => {
 exports.solicitar = async (req, res) => {
   const { tipo } = req.body;
 
-  if (!TIPOS_VALIDOS.includes(tipo)) {
+  const esEmpresa = TIPOS_EMPRESA.includes(tipo);
+  const esPuesto = TIPOS_PUESTO.includes(tipo);
+
+  if (!esEmpresa && !esPuesto) {
     return Errores.validacion(res, [{ campo: 'tipo', mensaje: 'Tipo de solicitud no válido.' }]);
   }
 
-  if (!(await modulosEmpresaCompletos(req.usuario.id))) {
+  if (esPuesto) {
+    if (!req.usuario.induccionPuestoHabilitada) {
+      return Errores.validacion(res, [{ campo: 'induccion', mensaje: 'La inducción al puesto no está habilitada.' }]);
+    }
+    if (!(await checklistPuestoCompleto(req.usuario.id))) {
+      return Errores.validacion(res, [
+        { campo: 'checklist', mensaje: 'Debes completar todas las actividades del checklist primero.' },
+      ]);
+    }
+  } else if (!(await modulosEmpresaCompletos(req.usuario.id))) {
     return Errores.validacion(res, [{ campo: 'modulos', mensaje: 'Debes completar todos los módulos primero.' }]);
   }
 
