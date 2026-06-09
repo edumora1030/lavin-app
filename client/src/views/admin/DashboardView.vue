@@ -280,11 +280,13 @@ const tabs = [
   { key: 'general', label: 'General', icon: Globe },
   { key: 'operativo', label: 'Operativos', icon: HardHat },
   { key: 'administrativo', label: 'Administrativos', icon: Briefcase },
+  { key: 'ayudante_general', label: 'Ayudante general', icon: HardHat },
 ];
 
 const programas = [
   { key: 'operativo', label: 'Operativos' },
   { key: 'administrativo', label: 'Administrativos' },
+  { key: 'ayudante_general', label: 'Ayudante general' },
 ];
 
 const activeTab = ref('general');

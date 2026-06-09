@@ -102,8 +102,17 @@
         <p>{{ alcance === 'puesto' ? 'Cargando checklist…' : 'Cargando módulos…' }}</p>
       </div>
 
+      <template v-else>
+      <RecordatoriosChecklist
+        v-if="recordatoriosItems.length"
+        :items="recordatoriosItems"
+        :progreso-ids="recordatoriosProgresoIds"
+        :completados="recordatoriosCompletados"
+        @refresh="refreshProgreso"
+      />
+
       <PuestoInduccionChecklist
-        v-else-if="alcance === 'puesto'"
+        v-if="alcance === 'puesto'"
         :items="checklistItems"
         :progreso-ids="checklistProgresoIds"
         :pct="pct"
@@ -111,11 +120,12 @@
         :comentarios-inicial="checklistComentarios"
         :temas-inicial="checklistTemas"
         :ya-notificado="solicitudEstado('induccion_puesto_completada') !== null"
+        :recordatorios-completa="recordatoriosCompleta"
         @refresh="refreshProgreso"
         @finalizada="onInduccionPuestoFinalizada"
       />
 
-      <template v-else>
+      <template v-else-if="alcance === 'empresa'">
         <InduccionCourse
           ref="courseRef"
           embedded
@@ -224,6 +234,7 @@
             <p v-else class="mis-dudas-empty">Aún no has enviado dudas durante tu inducción.</p>
           </div>
         </div>
+      </template>
       </template>
       </section>
 
@@ -341,8 +352,10 @@ import { useAuthStore } from '../../stores/auth';
 import { api } from '../../api';
 import InduccionCourse from '../../components/InduccionCourse.vue';
 import PuestoInduccionChecklist from '../../components/PuestoInduccionChecklist.vue';
+import RecordatoriosChecklist from '../../components/RecordatoriosChecklist.vue';
 import AppModal from '../../components/AppModal.vue';
 import { useAppAlert } from '../../composables/useAppAlert';
+import { programaLabel } from '../../constants/hero';
 import { Factory, Monitor, Building2, Briefcase, Layers, CircleHelp, ChevronRight, Play } from '@lucide/vue';
 
 const { showAlert } = useAppAlert();
@@ -361,6 +374,11 @@ const checklistComentarios = ref('');
 const checklistTemas = ref('');
 const checklistCompletados = ref(0);
 const checklistTotal = ref(0);
+const recordatoriosItems = ref([]);
+const recordatoriosProgresoIds = ref([]);
+const recordatoriosCompletados = ref(0);
+const recordatoriosTotal = ref(0);
+const recordatoriosCompleta = ref(false);
 const courseRef = ref(null);
 const activeModuloId = ref(null);
 const examenModal = ref(null);
@@ -406,7 +424,7 @@ const routeGridClass = computed(() => {
 });
 
 const heroBadge = computed(() => {
-  const programa = auth.user?.programa === 'administrativo' ? 'Administrativo' : 'Operativo';
+  const programa = programaLabel(auth.user?.programa);
   const scope = alcance.value === 'empresa' ? 'Inducción a la empresa' : 'Inducción al puesto';
   return `${programa} · ${scope} · Colaborador`;
 });
@@ -430,33 +448,38 @@ const modulosCompletados = computed(() =>
 
 const pct = computed(() => {
   if (alcance.value === 'puesto') {
-    return checklistTotal.value
-      ? Math.round((checklistCompletados.value / checklistTotal.value) * 100)
-      : 0;
+    const total = checklistTotal.value + recordatoriosTotal.value;
+    const done = checklistCompletados.value + recordatoriosCompletados.value;
+    return total ? Math.round((done / total) * 100) : 0;
   }
-  return modulos.value.length ? Math.round((modulosCompletados.value / modulos.value.length) * 100) : 0;
+  const total = modulos.value.length + recordatoriosTotal.value;
+  const done = modulosCompletados.value + recordatoriosCompletados.value;
+  return total ? Math.round((done / total) * 100) : 0;
 });
 
 const progressNote = computed(() => {
   if (alcance.value === 'puesto') {
-    const total = checklistTotal.value;
-    const done = checklistCompletados.value;
-    return done === total && total
-      ? 'Completaste todas las actividades del puesto'
-      : `${done} de ${total} actividades completadas`;
+    const total = checklistTotal.value + recordatoriosTotal.value;
+    const done = checklistCompletados.value + recordatoriosCompletados.value;
+    if (done === total && total) return 'Completaste la inducción al puesto y los recordatorios';
+    return `${done} de ${total} actividades completadas`;
   }
-  const total = modulos.value.length;
-  const done = modulosCompletados.value;
-  return done === total && total
-    ? 'Completaste todos los módulos'
-    : `${done} de ${total} módulos completados`;
+  const total = modulos.value.length + recordatoriosTotal.value;
+  const done = modulosCompletados.value + recordatoriosCompletados.value;
+  if (done === total && total) return 'Completaste todos los módulos y recordatorios';
+  return `${done} de ${total} actividades completadas`;
 });
 
 const induccionCompleta = computed(() => {
+  const recOk = recordatoriosTotal.value === 0 || recordatoriosCompleta.value;
   if (alcance.value === 'puesto') {
-    return checklistTotal.value > 0 && checklistCompletados.value === checklistTotal.value;
+    return checklistTotal.value > 0
+      && checklistCompletados.value === checklistTotal.value
+      && recOk;
   }
-  return modulos.value.length > 0 && modulosCompletados.value === modulos.value.length;
+  return modulos.value.length > 0
+    && modulosCompletados.value === modulos.value.length
+    && recOk;
 });
 
 function solicitudEstado(tipo) {
@@ -474,10 +497,27 @@ function labelSolicitud(tipo) {
   return 'Haz clic para notificar a RR.HH.';
 }
 
+function aplicarRecordatorios(data) {
+  recordatoriosItems.value = data?.items || [];
+  recordatoriosProgresoIds.value = (data?.progresos || []).map((p) => p.itemId);
+  recordatoriosCompletados.value = data?.completados ?? 0;
+  recordatoriosTotal.value = data?.total ?? 0;
+  recordatoriosCompleta.value = !!data?.completa;
+}
+
 async function fetchInduccionData() {
+  const recordatoriosReq = api.get('/api/checklist-recordatorios/mi-progreso').catch(() => ({
+    items: [],
+    progresos: [],
+    completados: 0,
+    total: 0,
+    completa: false,
+  }));
+
   if (alcance.value === 'puesto') {
-    const [checklist, s] = await Promise.all([
+    const [checklist, rec, s] = await Promise.all([
       api.get('/api/checklist-puesto/mi-progreso'),
+      recordatoriosReq,
       api.get('/api/notificaciones/mias').catch(() => []),
     ]);
     checklistItems.value = checklist.items || [];
@@ -486,18 +526,21 @@ async function fetchInduccionData() {
     checklistTotal.value = checklist.total ?? 0;
     checklistComentarios.value = checklist.comentarios || '';
     checklistTemas.value = checklist.temasPuesto || '';
+    aplicarRecordatorios(rec);
     modulos.value = [];
     progreso.value = [];
     solicitudes.value = s;
     return;
   }
-  const [m, p, s] = await Promise.all([
+  const [m, p, rec, s] = await Promise.all([
     api.get('/api/modulos?alcance=empresa'),
     api.get('/api/progreso'),
+    recordatoriosReq,
     api.get('/api/notificaciones/mias').catch(() => []),
   ]);
   modulos.value = m;
   progreso.value = p;
+  aplicarRecordatorios(rec);
   solicitudes.value = s;
   checklistItems.value = [];
   checklistProgresoIds.value = [];

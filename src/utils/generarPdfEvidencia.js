@@ -48,6 +48,7 @@ function fmtFecha(date) {
 function fmtPrograma(programa) {
   if (programa === 'administrativo') return 'Administrativo';
   if (programa === 'operativo') return 'Operativo';
+  if (programa === 'ayudante_general') return 'Ayudante general';
   return '—';
 }
 
@@ -104,21 +105,27 @@ function drawLogo(doc, x, y) {
       return { w: LOGO_W, h: LOGO_H };
     } catch { /* fallback below */ }
   }
-  drawRect(doc, x, y, 44, 28, C.navyMid, C.blue);
-  doc.font('Helvetica-Bold').fontSize(7).fillColor(C.white)
-    .text('LAVIN', x, y + 9, { width: 44, align: 'center' });
-  return { w: 44, h: 28 };
+  doc.font('Helvetica-Bold').fontSize(9).fillColor(C.white)
+    .text('LAVIN', x, y + 8, { width: 60, lineBreak: false });
+  return { w: 60, h: 28 };
 }
 
-function ensureSpace(doc, y, needed) {
+const TITULOS = {
+  empresa: 'Hoja de evidencia de inducción a la empresa',
+  puesto:  'Hoja de evidencia de inducción al puesto',
+};
+
+const PUESTO_SPLIT = 7;
+
+function ensureSpace(doc, y, needed, headerTitle) {
   if (y + needed <= PAGE.h - M - FOOTER_RESERVE) return y;
   doc.addPage();
-  return drawPageHeader(doc);
+  return drawPageHeader(doc, headerTitle);
 }
 
 /* ─── HEADER ─────────────────────────────────────────────────── */
 
-function drawPageHeader(doc) {
+function drawPageHeader(doc, title = TITULOS.empresa) {
   drawRect(doc, 0, 0, PAGE.w, HEADER_H, C.navy);
 
   const logoY = (HEADER_H - LOGO_H) / 2;
@@ -126,8 +133,8 @@ function drawPageHeader(doc) {
   const tx    = M + logo.w + 14;
   const textW = PAGE.w - tx - 110;   // deja espacio para la ref a la derecha
 
-  doc.font('Helvetica-Bold').fontSize(15).fillColor(C.white)
-    .text('Hoja de evidencia de inducción', tx, 22, { width: textW, lineBreak: false });
+  doc.font('Helvetica-Bold').fontSize(13).fillColor(C.white)
+    .text(title, tx, 22, { width: textW, lineBreak: false });
   doc.font('Helvetica').fontSize(9.5).fillColor(C.footerText)
     .text('Industrias Lavín · Recursos Humanos', tx, 44, { width: textW, lineBreak: false });
 
@@ -154,9 +161,9 @@ function drawPageFooter(doc) {
 
 /* ─── TARJETA EMPLEADO ───────────────────────────────────────── */
 
-function drawEmployeeCard(doc, y, empleado, generadoEn) {
+function drawEmployeeCard(doc, y, empleado, generadoEn, headerTitle) {
   const cardH = 90;
-  y = ensureSpace(doc, y, cardH + 14);
+  y = ensureSpace(doc, y, cardH + 14, headerTitle);
   drawRect(doc, M, y, CW, cardH, C.white, C.border);
 
   const colW = (CW - 28) / 2;
@@ -201,37 +208,55 @@ function drawStatBox(doc, bx, y, boxW, boxH, label, value, accent, iconBg) {
     .text(sanitize(value), bx + 36, y + 24, { width: boxW - 42, lineBreak: false });
 }
 
-function drawSummaryRow(doc, y, induccionEmpresa, induccionPuesto, evaluacionFinal, resumen) {
+function drawSummaryRow(doc, y, induccionEmpresa, induccionPuesto, evaluacionFinal, resumen, tipo, headerTitle) {
   const boxH = 56;
-  y = ensureSpace(doc, y, boxH + 14);
+  y = ensureSpace(doc, y, boxH + 14, headerTitle);
 
-  const boxes = [
-    {
-      label:  'Inducción empresa',
-      value:  `${induccionEmpresa.completados}/${induccionEmpresa.total}`,
-      accent: C.success, iconBg: C.successBg,
-    },
-    {
-      label:  'Inducción puesto',
-      value:  induccionPuesto.habilitada
-        ? `${induccionPuesto.completados}/${induccionPuesto.total}`
-        : 'No habilitada',
-      accent: C.blue, iconBg: '#eff6ff',
-    },
-    {
-      label:  'Evaluación final',
-      value:  evaluacionFinal?.completada ? 'Completada' : (evaluacionFinal ? 'Pendiente' : '—'),
-      accent: C.success, iconBg: C.successBg,
-    },
-    {
-      label:  'Promedio exámenes',
-      value:  resumen.totalExamenes > 0 ? `${resumen.promedioExamenes ?? 0}%` : '—',
-      accent: C.purple, iconBg: C.purpleBg,
-    },
-  ];
+  const boxes = tipo === 'puesto'
+    ? [
+        {
+          label:  'Inducción puesto',
+          value:  `${induccionPuesto.completados}/${induccionPuesto.total}`,
+          accent: C.blue, iconBg: '#eff6ff',
+        },
+        {
+          label:  'Evaluación final',
+          value:  evaluacionFinal?.completada ? 'Completada' : (evaluacionFinal ? 'Pendiente' : '—'),
+          accent: C.success, iconBg: C.successBg,
+        },
+        {
+          label:  'Promedio exámenes',
+          value:  resumen.totalExamenes > 0 ? `${resumen.promedioExamenes ?? 0}%` : '—',
+          accent: C.purple, iconBg: C.purpleBg,
+        },
+      ]
+    : [
+        {
+          label:  'Inducción empresa',
+          value:  `${induccionEmpresa.completados}/${induccionEmpresa.total}`,
+          accent: C.success, iconBg: C.successBg,
+        },
+        {
+          label:  'Inducción puesto',
+          value:  induccionPuesto.habilitada
+            ? `${induccionPuesto.completados}/${induccionPuesto.total}`
+            : 'No habilitada',
+          accent: C.blue, iconBg: '#eff6ff',
+        },
+        {
+          label:  'Evaluación final',
+          value:  evaluacionFinal?.completada ? 'Completada' : (evaluacionFinal ? 'Pendiente' : '—'),
+          accent: C.success, iconBg: C.successBg,
+        },
+        {
+          label:  'Promedio exámenes',
+          value:  resumen.totalExamenes > 0 ? `${resumen.promedioExamenes ?? 0}%` : '—',
+          accent: C.purple, iconBg: C.purpleBg,
+        },
+      ];
 
   const gap  = 6;
-  const boxW = (CW - gap * 3) / 4;
+  const boxW = (CW - gap * (boxes.length - 1)) / boxes.length;
   boxes.forEach((box, i) => {
     drawStatBox(doc, M + i * (boxW + gap), y, boxW, boxH, box.label, box.value, box.accent, box.iconBg);
   });
@@ -241,12 +266,12 @@ function drawSummaryRow(doc, y, induccionEmpresa, induccionPuesto, evaluacionFin
 
 /* ─── SECCIÓN HEADER ─────────────────────────────────────────── */
 
-function drawSectionHeader(doc, y, title, completados, total, completa) {
-  y = ensureSpace(doc, y, 28);
+function drawSectionHeader(doc, y, title, completados, total, completa, unidad = 'módulos', headerTitle) {
+  y = ensureSpace(doc, y, 28, headerTitle);
   doc.font('Helvetica-Bold').fontSize(9).fillColor(C.navyMid)
     .text(sanitize(title).toUpperCase(), M, y + 2, { width: CW - 130, lineBreak: false });
 
-  const badge  = `${completados}/${total} módulos completados`;
+  const badge  = `${completados}/${total} ${unidad} completados`;
   doc.font('Helvetica-Bold').fontSize(7);
   const badgeW = Math.min(doc.widthOfString(badge) + 16, 130);
   const badgeX = M + CW - badgeW;
@@ -288,9 +313,9 @@ function drawTableHeader(doc, y, cols) {
   return y + h;
 }
 
-function drawChecklistTable(doc, y, modulos) {
+function drawChecklistTable(doc, y, modulos, startIndex = 0, headerTitle) {
   const cols = tableColumns();
-  y = ensureSpace(doc, y, 20 + 22);
+  y = ensureSpace(doc, y, 20 + 22, headerTitle);
   y = drawTableHeader(doc, y, cols);
 
   if (!modulos.length) {
@@ -309,7 +334,7 @@ function drawChecklistTable(doc, y, modulos) {
     const rowH    = Math.max(20, Math.ceil(nombreH) + 8);
 
     const yBefore = y;
-    y = ensureSpace(doc, y, rowH);
+    y = ensureSpace(doc, y, rowH, headerTitle);
     if (y !== yBefore) y = drawTableHeader(doc, y, cols);
 
     drawRect(doc, M, y, CW, rowH, idx % 2 === 0 ? C.white : C.rowAlt, C.border);
@@ -319,7 +344,7 @@ function drawChecklistTable(doc, y, modulos) {
 
     // #
     doc.font('Helvetica').fontSize(8).fillColor(C.slate)
-      .text(String(idx + 1), x, midY - 4, { width: cols[0].w, align: 'center', lineBreak: false });
+      .text(String(startIndex + idx + 1), x, midY - 4, { width: cols[0].w, align: 'center', lineBreak: false });
     x += cols[0].w;
 
     // nombre
@@ -355,12 +380,12 @@ function drawChecklistTable(doc, y, modulos) {
 
 /* ─── BANNER DE ESTADO ───────────────────────────────────────── */
 
-function drawStatusBanner(doc, y, completa, textoOk, textoPending) {
+function drawStatusBanner(doc, y, completa, textoOk, textoPending, headerTitle) {
   const text = sanitize(completa ? textoOk : textoPending);
   doc.font('Helvetica-Bold').fontSize(8);
   const textH = doc.heightOfString(text, { width: CW - 32 });
   const h     = Math.max(20, textH + 12);
-  y = ensureSpace(doc, y, h + 8);
+  y = ensureSpace(doc, y, h + 8, headerTitle);
 
   drawRect(doc, M, y, CW, h,
     completa ? C.successBg   : C.warningBg,
@@ -374,11 +399,11 @@ function drawStatusBanner(doc, y, completa, textoOk, textoPending) {
 
 /* ─── EVAL FINAL + RESUMEN EXÁMENES ─────────────────────────── */
 
-function drawEvalAndExamRow(doc, y, evaluacionFinal, resumen) {
+function drawEvalAndExamRow(doc, y, evaluacionFinal, resumen, headerTitle) {
   const gap  = 10;
   const boxW = (CW - gap) / 2;
   const boxH = 60;
-  y = ensureSpace(doc, y, boxH + 14);
+  y = ensureSpace(doc, y, boxH + 14, headerTitle);
 
   if (evaluacionFinal) {
     drawRect(doc, M, y, boxW, boxH, C.white, C.border);
@@ -413,32 +438,51 @@ function drawEvalAndExamRow(doc, y, evaluacionFinal, resumen) {
   return y + boxH + 14;
 }
 
-/* ─── FIRMA ──────────────────────────────────────────────────── */
+/* ─── FIRMAS DE CONFORMIDAD ──────────────────────────────────── */
 
-function drawSignature(doc, y) {
-  y = ensureSpace(doc, y, 68);
-  // separador superior
+function drawFirmasConformidad(doc, y, headerTitle, numFilas = 3) {
+  const rowH   = 28;
+  const totalH = 14 + 18 + 18 + numFilas * rowH + 10;
+  y = ensureSpace(doc, y, totalH, headerTitle);
   doc.moveTo(M, y).lineTo(M + CW, y).strokeColor(C.border).lineWidth(0.5).stroke();
   y += 14;
 
   doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C.slate)
-    .text('FIRMA DE RECURSOS HUMANOS', M, y, { width: CW, align: 'center', lineBreak: false });
+    .text('FIRMAS DE CONFORMIDAD', M, y, { width: CW, align: 'center', lineBreak: false });
+  y += 18;
 
-  const lineW = 200;
-  const lineX = M + (CW - lineW) / 2;
-  doc.moveTo(lineX, y + 26).lineTo(lineX + lineW, y + 26)
-    .strokeColor(C.slate).lineWidth(0.5).stroke();
-  doc.font('Helvetica').fontSize(7.5).fillColor(C.slate)
-    .text('Nombre y firma', lineX, y + 32, { width: lineW, align: 'center', lineBreak: false });
-  doc.font('Helvetica').fontSize(7).fillColor('#94a3b8')
-    .text('Fecha: ___ / ___ / ___', lineX, y + 44, { width: lineW, align: 'center', lineBreak: false });
+  const cols = [
+    { label: 'NOMBRE', w: CW * 0.34 },
+    { label: 'FECHA',  w: CW * 0.18 },
+    { label: 'FIRMA',  w: CW * 0.28 },
+    { label: 'ÁREA',   w: CW * 0.20 },
+  ];
+  const headerH = 18;
+  drawRect(doc, M, y, CW, headerH, C.navyMid);
+  let x = M;
+  cols.forEach((col) => {
+    doc.font('Helvetica-Bold').fontSize(7).fillColor(C.white)
+      .text(col.label, x + 4, y + 5, { width: col.w - 8, lineBreak: false });
+    x += col.w;
+  });
+  y += headerH;
 
-  return y + 58;
+  for (let i = 0; i < numFilas; i++) {
+    drawRect(doc, M, y, CW, rowH, i % 2 === 0 ? C.white : C.rowAlt, C.border);
+    y += rowH;
+  }
+
+  return y + 10;
 }
 
 /* ─── FUNCIÓN PRINCIPAL ──────────────────────────────────────── */
 
-function generarPdfEvidencia(evidencia) {
+function generarPdfEvidencia(evidencia, tipo = 'empresa') {
+  const headerTitle = TITULOS[tipo] || TITULOS.empresa;
+  const resumenStats = tipo === 'empresa'
+    ? (evidencia.resumenEmpresa || evidencia.resumen)
+    : evidencia.resumen;
+
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true });
     const chunks = [];
@@ -446,34 +490,69 @@ function generarPdfEvidencia(evidencia) {
     doc.on('end',  () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    const { empleado, induccionEmpresa, induccionPuesto, evaluacionFinal, resumen } = evidencia;
+    const { empleado, induccionEmpresa, induccionPuesto, recordatorios, evaluacionFinal } = evidencia;
 
-    let y = drawPageHeader(doc);
-    y = drawEmployeeCard(doc, y, empleado, evidencia.generadoEn);
-    y = drawSummaryRow(doc, y, induccionEmpresa, induccionPuesto, evaluacionFinal, resumen);
+    let y = drawPageHeader(doc, headerTitle);
+    y = drawEmployeeCard(doc, y, empleado, evidencia.generadoEn, headerTitle);
+    y = drawSummaryRow(
+      doc, y, induccionEmpresa, induccionPuesto, evaluacionFinal, resumenStats, tipo, headerTitle,
+    );
 
-    if (induccionEmpresa.habilitada) {
-      y = drawSectionHeader(doc, y, 'Módulos de inducción',
-        induccionEmpresa.completados, induccionEmpresa.total, induccionEmpresa.completa);
-      y = drawChecklistTable(doc, y, induccionEmpresa.modulos);
-      y = drawStatusBanner(doc, y, induccionEmpresa.completa,
+    if (tipo === 'empresa' && induccionEmpresa.habilitada) {
+      y = drawSectionHeader(
+        doc, y, 'Inducción a la empresa',
+        induccionEmpresa.completados, induccionEmpresa.total, induccionEmpresa.modulosCompleta,
+        'módulos', headerTitle,
+      );
+      y = drawChecklistTable(doc, y, induccionEmpresa.modulos, 0, headerTitle);
+      y = drawStatusBanner(
+        doc, y, induccionEmpresa.modulosCompleta,
         'Todos los módulos de inducción a la empresa fueron completados.',
-        'Inducción a la empresa incompleta.');
+        'Inducción a la empresa incompleta.',
+        headerTitle,
+      );
     }
 
-    if (induccionPuesto.habilitada) {
-      y = drawSectionHeader(doc, y, 'Inducción al puesto',
-        induccionPuesto.completados, induccionPuesto.total, induccionPuesto.completa);
-      y = drawChecklistTable(doc, y, induccionPuesto.modulos);
-      y = drawStatusBanner(doc, y, induccionPuesto.completa,
-        'Todos los módulos de inducción al puesto fueron completados.',
-        'Inducción al puesto incompleta.');
+    if (tipo === 'puesto' && induccionPuesto.habilitada) {
+      const modulos = induccionPuesto.modulos;
+      y = drawSectionHeader(
+        doc, y, 'Inducción al puesto',
+        induccionPuesto.completados, induccionPuesto.total, induccionPuesto.modulosCompleta,
+        'ítems', headerTitle,
+      );
+      y = drawChecklistTable(doc, y, modulos.slice(0, PUESTO_SPLIT), 0, headerTitle);
+      if (modulos.length > PUESTO_SPLIT) {
+        y = drawChecklistTable(doc, y, modulos.slice(PUESTO_SPLIT), PUESTO_SPLIT, headerTitle);
+      }
+      y = drawStatusBanner(
+        doc, y, induccionPuesto.modulosCompleta,
+        'Todos los ítems de inducción al puesto fueron completados.',
+        'Inducción al puesto incompleta.',
+        headerTitle,
+      );
     }
 
-    y = drawEvalAndExamRow(doc, y, evaluacionFinal, resumen);
-    drawSignature(doc, y);
+    if (recordatorios?.habilitada && recordatorios.modulos?.length) {
+      y = drawSectionHeader(
+        doc, y, 'Recordatorios importantes',
+        recordatorios.completados, recordatorios.total, recordatorios.completa,
+        'ítems', headerTitle,
+      );
+      y = drawChecklistTable(doc, y, recordatorios.modulos, 0, headerTitle);
+      y = drawStatusBanner(
+        doc, y, recordatorios.completa,
+        'Todos los recordatorios importantes fueron completados.',
+        'Faltan recordatorios importantes por completar.',
+        headerTitle,
+      );
+    }
 
-    // footer en todas las páginas
+    if (tipo === 'empresa' && induccionEmpresa.habilitada) {
+      y = drawEvalAndExamRow(doc, y, evaluacionFinal, resumenStats, headerTitle);
+    }
+
+    drawFirmasConformidad(doc, y, headerTitle, tipo === 'empresa' ? 5 : 3);
+
     const range = doc.bufferedPageRange();
     for (let i = range.start; i < range.start + range.count; i++) {
       doc.switchToPage(i);
@@ -484,4 +563,4 @@ function generarPdfEvidencia(evidencia) {
   });
 }
 
-module.exports = { generarPdfEvidencia };
+module.exports = { generarPdfEvidencia, TITULOS };

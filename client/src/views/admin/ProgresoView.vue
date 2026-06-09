@@ -79,15 +79,25 @@
                     <Eye :size="15" stroke-width="2" />
                   </button>
                   <button
-                    v-if="u.induccionCompleta"
+                    v-if="u.induccionEmpresaHabilitada"
                     class="icon-btn"
                     type="button"
-                    :disabled="descargandoPdf === u.id"
-                    title="Descargar PDF de evidencia"
-                    aria-label="Descargar PDF de evidencia"
-                    @click="descargarEvidencia(u)"
+                    :disabled="!u.empresaCompleta || descargandoPdf === `${u.id}-empresa`"
+                    :title="tituloDescargaEmpresa(u)"
+                    aria-label="Descargar PDF evidencia empresa"
+                    @click="descargarEvidencia(u, 'empresa')"
                   >
                     <FileDown :size="15" stroke-width="2" />
+                  </button>
+                  <button
+                    class="icon-btn"
+                    type="button"
+                    :disabled="!puedeDescargarPuesto(u) || descargandoPdf === `${u.id}-puesto`"
+                    :title="tituloDescargaPuesto(u)"
+                    aria-label="Descargar PDF evidencia puesto"
+                    @click="descargarEvidencia(u, 'puesto')"
+                  >
+                    <ClipboardList :size="15" stroke-width="2" />
                   </button>
                 </div>
               </td>
@@ -98,18 +108,44 @@
     </div>
 
     <AppModal v-if="evidencia" evidencia @close="cerrarReporte">
-      <EvidenciaSheet
-        :evidencia="evidencia"
-        :downloading="descargandoPdf === evidencia.empleado.id"
-        @download="descargarEvidencia(evidencia.empleado)"
-      />
+      <div class="evidencia-modal">
+        <div class="evidencia-tabs" role="tablist" aria-label="Tipo de hoja de evidencia">
+          <button
+            type="button"
+            role="tab"
+            class="evidencia-tabs__btn"
+            :class="{ 'is-active': hojaActiva === 'empresa' }"
+            :aria-selected="hojaActiva === 'empresa'"
+            :disabled="!evidencia.induccionEmpresa.habilitada"
+            @click="hojaActiva = 'empresa'"
+          >
+            Empresa
+          </button>
+          <button
+            type="button"
+            role="tab"
+            class="evidencia-tabs__btn"
+            :class="{ 'is-active': hojaActiva === 'puesto' }"
+            :aria-selected="hojaActiva === 'puesto'"
+            @click="hojaActiva = 'puesto'"
+          >
+            Puesto
+          </button>
+        </div>
+        <EvidenciaSheet
+          :evidencia="evidencia"
+          :tipo="hojaActiva"
+          :downloading="descargandoPdf === `${evidencia.empleado.id}-${hojaActiva}`"
+          @download="(tipo) => descargarEvidencia(evidencia.empleado, tipo)"
+        />
+      </div>
     </AppModal>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { Download, Eye, FileDown } from '@lucide/vue';
+import { ClipboardList, Download, Eye, FileDown } from '@lucide/vue';
 import { useAppAlert } from '../../composables/useAppAlert';
 import { api, downloadFile } from '../../api';
 const { showAlert } = useAppAlert();
@@ -123,6 +159,7 @@ const error = ref('');
 const q = ref('');
 const filtroEstado = ref('');
 const evidencia = ref(null);
+const hojaActiva = ref('empresa');
 const exportando = ref(false);
 const descargandoPdf = ref(null);
 
@@ -160,6 +197,7 @@ const filtrosProgreso = computed(() => {
 function rolLabel(p) {
   if (p === 'administrativo') return 'Administrativo';
   if (p === 'operativo') return 'Operativo';
+  if (p === 'ayudante_general') return 'Ayudante general';
   return '—';
 }
 
@@ -181,29 +219,45 @@ function estadoColor(u) {
   return 'var(--slate-500)';
 }
 
-async function verReporte(id) {
-  const data = await api.get(`/api/usuarios/${id}/evidencia`);
-  data.induccionCompleta = esInduccionCompleta(data);
-  evidencia.value = data;
+function puedeDescargarPuesto(u) {
+  return u.induccionPuestoHabilitada && u.puestoCompleta;
 }
 
-function esInduccionCompleta(data) {
-  const empresaOk = !data.induccionEmpresa.habilitada || data.induccionEmpresa.completa;
-  const puestoOk = !data.induccionPuesto.habilitada || data.induccionPuesto.completa;
-  const tienePrograma = data.induccionEmpresa.habilitada || data.induccionPuesto.habilitada;
-  return tienePrograma && empresaOk && puestoOk;
+function tituloDescargaEmpresa(u) {
+  if (!u.induccionEmpresaHabilitada) return 'Inducción a la empresa no habilitada';
+  if (!u.empresaModulosCompleta) return 'Módulos de empresa incompletos';
+  if (!u.recordatoriosCompleta) return 'Faltan recordatorios importantes';
+  return 'Descargar PDF evidencia empresa';
+}
+
+function tituloDescargaPuesto(u) {
+  if (!u.induccionPuestoHabilitada) return 'Inducción al puesto no habilitada';
+  if (!u.puestoModulosCompleta) return 'Checklist de puesto incompleto';
+  if (!u.recordatoriosCompleta) return 'Faltan recordatorios importantes';
+  return 'Descargar PDF evidencia puesto';
+}
+
+async function verReporte(id) {
+  const data = await api.get(`/api/usuarios/${id}/evidencia`);
+  evidencia.value = data;
+  hojaActiva.value = data.induccionEmpresa.habilitada ? 'empresa' : 'puesto';
 }
 
 function cerrarReporte() {
   evidencia.value = null;
 }
 
-async function descargarEvidencia(empleado) {
+async function descargarEvidencia(empleado, tipo) {
   const id = empleado.id;
   const nomina = empleado.nomina;
-  descargandoPdf.value = id;
+  const key = `${id}-${tipo}`;
+  descargandoPdf.value = key;
   try {
-    await downloadFile(`/api/usuarios/${id}/evidencia/pdf`, `evidencia-induccion-${nomina}.pdf`);
+    const suffix = tipo === 'empresa' ? 'empresa' : 'puesto';
+    await downloadFile(
+      `/api/usuarios/${id}/evidencia/pdf/${tipo}`,
+      `evidencia-induccion-${suffix}-${nomina}.pdf`,
+    );
   } catch (e) {
     showAlert({ title: 'Error al generar PDF', message: e.message || 'No se pudo generar el PDF.', variant: 'error' });
   } finally {
@@ -245,5 +299,44 @@ async function load() {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.evidencia-modal {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.evidencia-tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 0;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.evidencia-tabs__btn {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px 6px 0 0;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.evidencia-tabs__btn.is-active {
+  color: #0f2744;
+  border-bottom-color: #fff;
+  background: #fff;
+  box-shadow: inset 0 2px 0 #2563eb;
+}
+
+.evidencia-tabs__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 </style>

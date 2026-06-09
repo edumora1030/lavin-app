@@ -35,12 +35,35 @@ export const HERO_COPY = {
       badgeClass: 'profile-badge--operativo',
     },
   },
+  ayudante_general: {
+    empresa: {
+      heroBadge: 'Ayudante general · Inducción a la empresa',
+      heroTitle: 'Bienvenido(a) a Industrias Lavin',
+      heroDesc: 'Conoce la empresa, la cultura en planta, normas generales de seguridad y tu lugar en la organización.',
+      scopeLabel: 'Inducción a la empresa',
+      programName: 'Programa de Inducción Ayudante general',
+      badgeClass: 'profile-badge--operativo',
+    },
+    puesto: {
+      heroBadge: 'Ayudante general · Inducción al puesto',
+      heroTitle: 'Tu inducción al puesto',
+      heroDesc: 'Aprende las funciones de tu área, procedimientos, herramientas del puesto y relación con tu equipo.',
+      scopeLabel: 'Inducción al puesto',
+      programName: 'Programa de Inducción Ayudante general',
+      badgeClass: 'profile-badge--operativo',
+    },
+  },
 };
 
 export const PROGRAM_META = {
   administrativo: { label: 'Administrativo', programName: 'Programa de Inducción Administrativo' },
   operativo: { label: 'Operativo', programName: 'Programa de Inducción Operativo' },
+  ayudante_general: { label: 'Ayudante general', programName: 'Programa de Inducción Ayudante general' },
 };
+
+export function programaLabel(programa) {
+  return PROGRAM_META[programa]?.label ?? '—';
+}
 
 export const MODULE_SECTION = {
   cultura: { label: 'Cultura', anchor: 'cultura' },

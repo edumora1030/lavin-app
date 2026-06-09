@@ -20,7 +20,7 @@
       <!-- Administrativo con ambas: muestra selector -->
       <div v-else-if="mostrarSelector" class="gate-step-scope is-visible">
         <h2 class="profile-picker-title">¿Qué inducción deseas realizar?</h2>
-        <p class="profile-picker-desc">Programa de Inducción {{ auth.user?.programa === 'administrativo' ? 'Administrativo' : 'Operativo' }}</p>
+        <p class="profile-picker-desc">{{ PROGRAM_META[auth.user?.programa]?.programName ?? 'Programa de Inducción' }}</p>
         <div class="profile-grid">
           <button v-if="auth.user?.induccionEmpresaHabilitada" type="button" class="profile-option profile-option--scope" @click="ir('empresa')">
             <span class="profile-option-icon" aria-hidden="true">
@@ -46,6 +46,7 @@
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
+import { PROGRAM_META } from '../../constants/hero';
 import LogoBlock from '../../components/LogoBlock.vue';
 import { Building2, ClipboardList } from '@lucide/vue';
 

@@ -1,11 +1,10 @@
 <template>
   <div class="evidencia-sheet">
 
-    <!-- HEADER navy -->
     <header class="evidencia-sheet__header">
       <img :src="logoUrl" alt="Lavin Industrias" class="evidencia-sheet__logo">
       <div class="evidencia-sheet__header-text">
-        <h1>Hoja de evidencia de inducción</h1>
+        <h1>{{ titulo }}</h1>
         <p>Industrias Lavín · Recursos Humanos</p>
       </div>
       <div class="evidencia-sheet__header-right">
@@ -14,23 +13,21 @@
           <span>Rev. 3</span>
         </div>
         <button
-          v-if="showDownload && evidencia.induccionCompleta"
+          v-if="showDownload && puedeDescargar"
           type="button"
           class="evidencia-sheet__download"
           :disabled="downloading"
           title="Descargar PDF"
           aria-label="Descargar PDF de evidencia"
-          @click="$emit('download')"
+          @click="$emit('download', tipo)"
         >
           <FileDown :size="16" stroke-width="2" />
         </button>
       </div>
     </header>
 
-    <!-- CUERPO del documento -->
     <div class="evidencia-sheet__body">
 
-      <!-- TARJETA EMPLEADO -->
       <section class="evidencia-sheet__empleado">
         <div class="evidencia-sheet__field">
           <span class="evidencia-sheet__field-icon"><User :size="13" /></span>
@@ -67,13 +64,14 @@
             <strong>{{ fmtFecha(evidencia.generadoEn) }}</strong>
           </div>
         </div>
-        <!-- celda vacía para alinear grid -->
         <div></div>
       </section>
 
-      <!-- STATS ROW -->
-      <div class="evidencia-sheet__stats">
-        <div class="evidencia-sheet__stat evidencia-sheet__stat--green">
+      <div class="evidencia-sheet__stats" :class="{ 'is-puesto': tipo === 'puesto' }">
+        <div
+          v-if="tipo === 'empresa'"
+          class="evidencia-sheet__stat evidencia-sheet__stat--green"
+        >
           <span class="evidencia-sheet__stat-icon"><BookOpen :size="15" /></span>
           <div>
             <span class="evidencia-sheet__label">Inducción empresa</span>
@@ -106,18 +104,20 @@
           <span class="evidencia-sheet__stat-icon"><Award :size="15" /></span>
           <div>
             <span class="evidencia-sheet__label">Promedio exámenes</span>
-            <strong>{{ evidencia.resumen.promedioExamenes != null ? evidencia.resumen.promedioExamenes + '%' : '—' }}</strong>
+            <strong>{{ resumenStats.promedioExamenes != null ? resumenStats.promedioExamenes + '%' : '—' }}</strong>
           </div>
         </div>
       </div>
 
-      <!-- SECCIÓN: Módulos de inducción empresa -->
-      <section v-if="evidencia.induccionEmpresa.habilitada" class="evidencia-sheet__section">
+      <section
+        v-if="tipo === 'empresa' && evidencia.induccionEmpresa.habilitada"
+        class="evidencia-sheet__section"
+      >
         <div class="evidencia-sheet__section-head">
-          <h2>Módulos de inducción</h2>
+          <h2>Inducción a la empresa</h2>
           <span
             class="evidencia-sheet__badge"
-            :class="evidencia.induccionEmpresa.completa ? 'is-ok' : 'is-pending'"
+            :class="evidencia.induccionEmpresa.modulosCompleta ? 'is-ok' : 'is-pending'"
           >
             {{ evidencia.induccionEmpresa.completados }}/{{ evidencia.induccionEmpresa.total }} módulos completados
           </span>
@@ -125,44 +125,78 @@
         <EvidenciaChecklist :modulos="evidencia.induccionEmpresa.modulos" />
         <div
           class="evidencia-sheet__banner"
-          :class="evidencia.induccionEmpresa.completa ? 'is-ok' : 'is-pending'"
+          :class="evidencia.induccionEmpresa.modulosCompleta ? 'is-ok' : 'is-pending'"
         >
           <CircleCheck :size="14" stroke-width="2.5" />
           {{
-            evidencia.induccionEmpresa.completa
+            evidencia.induccionEmpresa.modulosCompleta
               ? 'Todos los módulos de inducción a la empresa fueron completados.'
               : 'Inducción a la empresa incompleta.'
           }}
         </div>
       </section>
 
-      <!-- SECCIÓN: Inducción al puesto -->
-      <section v-if="evidencia.induccionPuesto.habilitada" class="evidencia-sheet__section">
+      <section
+        v-if="tipo === 'puesto' && evidencia.induccionPuesto.habilitada"
+        class="evidencia-sheet__section"
+      >
         <div class="evidencia-sheet__section-head">
           <h2>Inducción al puesto</h2>
           <span
             class="evidencia-sheet__badge"
-            :class="evidencia.induccionPuesto.completa ? 'is-ok' : 'is-pending'"
+            :class="evidencia.induccionPuesto.modulosCompleta ? 'is-ok' : 'is-pending'"
           >
-            {{ evidencia.induccionPuesto.completados }}/{{ evidencia.induccionPuesto.total }} módulos completados
+            {{ evidencia.induccionPuesto.completados }}/{{ evidencia.induccionPuesto.total }} ítems completados
           </span>
         </div>
-        <EvidenciaChecklist :modulos="evidencia.induccionPuesto.modulos" />
+        <EvidenciaChecklist :modulos="puestoModulosP1" />
+        <EvidenciaChecklist
+          v-if="puestoModulosP2.length"
+          :modulos="puestoModulosP2"
+          :start-index="PUESTO_SPLIT"
+          class="evidencia-sheet__checklist-cont"
+        />
         <div
           class="evidencia-sheet__banner"
-          :class="evidencia.induccionPuesto.completa ? 'is-ok' : 'is-pending'"
+          :class="evidencia.induccionPuesto.modulosCompleta ? 'is-ok' : 'is-pending'"
         >
           <CircleCheck :size="14" stroke-width="2.5" />
           {{
-            evidencia.induccionPuesto.completa
-              ? 'Todos los módulos de inducción al puesto fueron completados.'
+            evidencia.induccionPuesto.modulosCompleta
+              ? 'Todos los ítems de inducción al puesto fueron completados.'
               : 'Inducción al puesto incompleta.'
           }}
         </div>
       </section>
 
-      <!-- BOTTOM: Evaluación final + Resumen exámenes -->
-      <div class="evidencia-sheet__bottom">
+      <section
+        v-if="evidencia.recordatorios?.habilitada && evidencia.recordatorios.modulos?.length"
+        class="evidencia-sheet__section"
+      >
+        <div class="evidencia-sheet__section-head">
+          <h2>Recordatorios importantes</h2>
+          <span
+            class="evidencia-sheet__badge"
+            :class="evidencia.recordatorios.completa ? 'is-ok' : 'is-pending'"
+          >
+            {{ evidencia.recordatorios.completados }}/{{ evidencia.recordatorios.total }} ítems completados
+          </span>
+        </div>
+        <EvidenciaChecklist :modulos="evidencia.recordatorios.modulos" />
+        <div
+          class="evidencia-sheet__banner"
+          :class="evidencia.recordatorios.completa ? 'is-ok' : 'is-pending'"
+        >
+          <CircleCheck :size="14" stroke-width="2.5" />
+          {{
+            evidencia.recordatorios.completa
+              ? 'Todos los recordatorios importantes fueron completados.'
+              : 'Faltan recordatorios importantes por completar.'
+          }}
+        </div>
+      </section>
+
+      <div v-if="tipo === 'empresa'" class="evidencia-sheet__bottom">
         <section v-if="evidencia.evaluacionFinal" class="evidencia-sheet__card">
           <div
             class="evidencia-sheet__card-icon"
@@ -180,29 +214,42 @@
             </p>
           </div>
         </section>
-        <section v-if="evidencia.resumen.totalExamenes" class="evidencia-sheet__card evidencia-sheet__card--purple">
+        <section v-if="resumenStats.totalExamenes" class="evidencia-sheet__card evidencia-sheet__card--purple">
           <div class="evidencia-sheet__card-icon is-purple">
             <BarChart3 :size="20" stroke-width="2" />
           </div>
           <div>
             <h3>Resumen de exámenes</h3>
-            <p>Aprobados: {{ evidencia.resumen.examenesAprobados }} de {{ evidencia.resumen.totalExamenes }}</p>
-            <p class="evidencia-sheet__card-big">Promedio general<br><strong>{{ evidencia.resumen.promedioExamenes ?? 0 }}%</strong></p>
+            <p>Aprobados: {{ resumenStats.examenesAprobados }} de {{ resumenStats.totalExamenes }}</p>
+            <p class="evidencia-sheet__card-big">Promedio general<br><strong>{{ resumenStats.promedioExamenes ?? 0 }}%</strong></p>
           </div>
         </section>
       </div>
 
-      <!-- FIRMA -->
-      <section class="evidencia-sheet__firma">
-        <p class="evidencia-sheet__firma-title">Firma de Recursos Humanos</p>
-        <div class="evidencia-sheet__firma-line"></div>
-        <span>Nombre y firma</span>
-        <span class="evidencia-sheet__firma-fecha">Fecha: ___ / ___ / ___</span>
+      <section class="evidencia-sheet__firmas">
+        <p class="evidencia-sheet__firmas-title">Firmas de conformidad</p>
+        <table class="evidencia-sheet__firmas-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Fecha</th>
+              <th>Firma</th>
+              <th>Área</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="n in (tipo === 'empresa' ? 5 : 3)" :key="n">
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
-    </div><!-- /body -->
+    </div>
 
-    <!-- FOOTER navy -->
     <footer class="evidencia-sheet__footer">
       Documento generado electrónicamente · Uso interno
     </footer>
@@ -211,14 +258,18 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import {
   Award, BarChart3, BookOpen, Briefcase, Building2, Calendar,
   CircleCheck, FileDown, IdCard, User,
 } from '@lucide/vue';
 import EvidenciaChecklist from './EvidenciaChecklist.vue';
 
-defineProps({
+const PUESTO_SPLIT = 7;
+
+const props = defineProps({
   evidencia: { type: Object, required: true },
+  tipo: { type: String, default: 'empresa', validator: (v) => ['empresa', 'puesto'].includes(v) },
   showDownload: { type: Boolean, default: true },
   downloading: { type: Boolean, default: false },
 });
@@ -226,6 +277,32 @@ defineProps({
 defineEmits(['download']);
 
 const logoUrl = '/assets/logoempresa.png';
+
+const titulo = computed(() => (
+  props.tipo === 'puesto'
+    ? 'Hoja de evidencia de inducción al puesto'
+    : 'Hoja de evidencia de inducción a la empresa'
+));
+
+const resumenStats = computed(() => (
+  props.tipo === 'empresa'
+    ? (props.evidencia.resumenEmpresa || props.evidencia.resumen)
+    : props.evidencia.resumen
+));
+
+const puedeDescargar = computed(() => (
+  props.tipo === 'empresa'
+    ? props.evidencia.induccionEmpresa?.completa
+    : props.evidencia.induccionPuesto?.completa
+));
+
+const puestoModulosP1 = computed(() =>
+  props.evidencia.induccionPuesto.modulos.slice(0, PUESTO_SPLIT),
+);
+
+const puestoModulosP2 = computed(() =>
+  props.evidencia.induccionPuesto.modulos.slice(PUESTO_SPLIT),
+);
 
 function fmtFecha(date) {
   if (!date) return '—';
@@ -239,12 +316,12 @@ function fmtFecha(date) {
 function fmtPrograma(programa) {
   if (programa === 'administrativo') return 'Administrativo';
   if (programa === 'operativo') return 'Operativo';
+  if (programa === 'ayudante_general') return 'Ayudante general';
   return '—';
 }
 </script>
 
 <style scoped>
-/* ─── Contenedor raíz ─────────────────────────────────────────── */
 .evidencia-sheet {
   display: flex;
   flex-direction: column;
@@ -253,7 +330,6 @@ function fmtPrograma(programa) {
   background: #fff;
 }
 
-/* ─── HEADER ──────────────────────────────────────────────────── */
 .evidencia-sheet__header {
   display: flex;
   align-items: center;
@@ -324,7 +400,6 @@ function fmtPrograma(programa) {
 .evidencia-sheet__download:hover:not(:disabled) { background: rgba(255,255,255,0.16); }
 .evidencia-sheet__download:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ─── BODY ────────────────────────────────────────────────────── */
 .evidencia-sheet__body {
   flex: 1;
   min-height: 0;
@@ -333,7 +408,6 @@ function fmtPrograma(programa) {
   background: #fff;
 }
 
-/* ─── TARJETA EMPLEADO ────────────────────────────────────────── */
 .evidencia-sheet__empleado {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -382,12 +456,15 @@ function fmtPrograma(programa) {
   line-height: 1.3;
 }
 
-/* ─── STATS ROW ───────────────────────────────────────────────── */
 .evidencia-sheet__stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.5rem;
   margin-bottom: 0.875rem;
+}
+
+.evidencia-sheet__stats.is-puesto {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 @media (max-width: 700px) {
@@ -421,7 +498,6 @@ function fmtPrograma(programa) {
 
 .evidencia-sheet__stat--green .evidencia-sheet__stat-icon { background: #ecfdf5; color: #16a34a; }
 .evidencia-sheet__stat--blue  .evidencia-sheet__stat-icon { background: #eff6ff; color: #2563eb; }
-.evidencia-sheet__stat--purple.evidencia-sheet__stat-icon { background: #f5f3ff; color: #7c3aed; }
 .evidencia-sheet__stat--purple .evidencia-sheet__stat-icon { background: #f5f3ff; color: #7c3aed; }
 
 .evidencia-sheet__stat strong {
@@ -432,9 +508,12 @@ function fmtPrograma(programa) {
   line-height: 1.2;
 }
 
-/* ─── SECCIONES ───────────────────────────────────────────────── */
 .evidencia-sheet__section {
   margin-bottom: 0.875rem;
+}
+
+.evidencia-sheet__checklist-cont {
+  margin-top: 0.5rem;
 }
 
 .evidencia-sheet__section-head {
@@ -481,7 +560,6 @@ function fmtPrograma(programa) {
 .evidencia-sheet__banner.is-ok    { color: #16a34a; background: #ecfdf5; border-color: #86efac; }
 .evidencia-sheet__banner.is-pending{ color: #b45309; background: #fff7ed; border-color: #fdba74; }
 
-/* ─── BOTTOM ──────────────────────────────────────────────────── */
 .evidencia-sheet__bottom {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -562,43 +640,57 @@ function fmtPrograma(programa) {
   color: #7c3aed;
 }
 
-/* ─── FIRMA ───────────────────────────────────────────────────── */
-.evidencia-sheet__firma {
+.evidencia-sheet__firmas {
   border-top: 1px solid #cbd5e1;
   margin-top: 0.25rem;
   padding: 1rem 0 1rem;
-  text-align: center;
 }
 
-.evidencia-sheet__firma-title {
-  margin: 0 0 1rem;
+.evidencia-sheet__firmas-title {
+  margin: 0 0 0.75rem;
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #64748b;
+  text-align: center;
 }
 
-.evidencia-sheet__firma-line {
-  width: min(200px, 60%);
-  height: 1px;
-  background: #94a3b8;
-  margin: 0 auto 0.5rem;
-}
-
-.evidencia-sheet__firma span {
-  display: block;
+.evidencia-sheet__firmas-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #cbd5e1;
   font-size: 0.8125rem;
-  color: #64748b;
 }
 
-.evidencia-sheet__firma-fecha {
-  margin-top: 0.3rem;
-  font-size: 0.75rem !important;
-  color: #94a3b8 !important;
+.evidencia-sheet__firmas-table thead tr {
+  background: #1e3a5f;
 }
 
-/* ─── FOOTER ──────────────────────────────────────────────────── */
+.evidencia-sheet__firmas-table th {
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.evidencia-sheet__firmas-table td {
+  height: 2rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.25rem 0.5rem;
+}
+
+.evidencia-sheet__firmas-table tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+.evidencia-sheet__firmas-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
 .evidencia-sheet__footer {
   flex-shrink: 0;
   padding: 0.5rem 1rem;

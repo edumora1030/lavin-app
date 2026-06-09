@@ -193,6 +193,22 @@ async function main() {
   const totalChecklist = await prisma.checklistPuestoItem.count({ where: { activo: true } });
   console.log(`✓ ${totalChecklist} actividades en checklist de puesto.`);
 
+  const { CHECKLIST_RECORDATORIOS } = require('./checklist-recordatorios-data');
+  for (const rec of CHECKLIST_RECORDATORIOS) {
+    const existente = await prisma.checklistRecordatorioItem.findUnique({ where: { slug: rec.slug } });
+    if (existente) {
+      await prisma.checklistRecordatorioItem.update({
+        where: { id: existente.id },
+        data: { titulo: rec.titulo, descripcion: rec.descripcion, orden: rec.orden, activo: true },
+      });
+    } else {
+      await prisma.checklistRecordatorioItem.create({ data: rec });
+      console.log(`✓ Recordatorio: ${rec.titulo}`);
+    }
+  }
+  const totalRec = await prisma.checklistRecordatorioItem.count({ where: { activo: true } });
+  console.log(`✓ ${totalRec} recordatorios importantes.`);
+
   const legacyPuesto = await prisma.modulo.findMany({
     where: { alcance: 'puesto', slug: { startsWith: 'puesto-checklist-' } },
   });

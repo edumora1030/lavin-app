@@ -161,11 +161,25 @@ const {
 
 exports.resumen = async (req, res) => {
   try {
-    const { empleados, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario } = await listarEmpleadosResumen(req);
+    const {
+      empleados,
+      modulosEmpresa,
+      checklistPuestoTotal,
+      recordatoriosTotal,
+      checklistPorUsuario,
+      recordatoriosPorUsuario,
+    } = await listarEmpleadosResumen(req);
 
     const data = empleados.map(({ password, progresos, ...e }) => ({
       ...e,
-      ...mapEmpleadoResumen({ ...e, progresos }, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario),
+      ...mapEmpleadoResumen(
+        { ...e, progresos },
+        modulosEmpresa,
+        checklistPuestoTotal,
+        recordatoriosTotal,
+        checklistPorUsuario,
+        recordatoriosPorUsuario,
+      ),
     }));
     return res.json(data);
   } catch (err) {
@@ -175,8 +189,22 @@ exports.resumen = async (req, res) => {
 };
 
 exports.resumenCsv = async (req, res) => {
-  const { empleados, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario } = await listarEmpleadosResumen(req);
-  const rows = mapEmpleadosResumen(empleados, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario);
+  const {
+    empleados,
+    modulosEmpresa,
+    checklistPuestoTotal,
+    recordatoriosTotal,
+    checklistPorUsuario,
+    recordatoriosPorUsuario,
+  } = await listarEmpleadosResumen(req);
+  const rows = mapEmpleadosResumen(
+    empleados,
+    modulosEmpresa,
+    checklistPuestoTotal,
+    recordatoriosTotal,
+    checklistPorUsuario,
+    recordatoriosPorUsuario,
+  );
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="progreso-empleados.csv"');

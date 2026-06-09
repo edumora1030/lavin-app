@@ -43,7 +43,9 @@ async function obtenerEvidenciaInduccion(usuarioId) {
 
   const progFilter = programaWhere(usuario.programa);
 
-  const [modulosEmpresa, itemsPuesto, progresosChecklistPuesto, progresos, intentos] = await Promise.all([
+  const necesitaRecordatorios = usuario.induccionEmpresaHabilitada || usuario.induccionPuestoHabilitada;
+
+  const [modulosEmpresa, itemsPuesto, progresosChecklistPuesto, itemsRecordatorios, progresosRecordatorios, progresos, intentos] = await Promise.all([
     prisma.modulo.findMany({
       where: {
         activo: true,
@@ -70,6 +72,19 @@ async function obtenerEvidenciaInduccion(usuarioId) {
       : Promise.resolve([]),
     usuario.induccionPuestoHabilitada
       ? prisma.checklistPuestoProgreso.findMany({
+          where: { usuarioId, completado: true },
+          select: { itemId: true, fechaCompletado: true },
+        })
+      : Promise.resolve([]),
+    necesitaRecordatorios
+      ? prisma.checklistRecordatorioItem.findMany({
+          where: { activo: true },
+          orderBy: { orden: 'asc' },
+          select: { id: true, slug: true, titulo: true, descripcion: true, orden: true },
+        })
+      : Promise.resolve([]),
+    necesitaRecordatorios
+      ? prisma.checklistRecordatorioProgreso.findMany({
           where: { usuarioId, completado: true },
           select: { itemId: true, fechaCompletado: true },
         })
@@ -119,6 +134,21 @@ async function obtenerEvidenciaInduccion(usuarioId) {
   });
 
   const evalFinal = checklistEmpresa.find((m) => m.esEvaluacionFinal) || null;
+
+  function buildResumen(modulos) {
+    const examenes = modulos.filter((m) => m.requiereExamen && m.calificacion != null);
+    const promedio = examenes.length
+      ? Math.round(examenes.reduce((sum, m) => sum + m.calificacion, 0) / examenes.length)
+      : null;
+    return {
+      promedioExamenes: promedio,
+      examenesAprobados: examenes.filter((m) => m.aprobado).length,
+      totalExamenes: examenes.length,
+    };
+  }
+
+  const resumenEmpresa = buildResumen(checklistEmpresa);
+  const resumenPuesto = buildResumen(checklistPuesto);
   const examenesConCalificacion = [...checklistEmpresa, ...checklistPuesto].filter(
     (m) => m.requiereExamen && m.calificacion != null
   );
@@ -129,8 +159,32 @@ async function obtenerEvidenciaInduccion(usuarioId) {
       )
     : null;
 
+  const progresoRecordatorioMap = new Map(
+    progresosRecordatorios.map((p) => [p.itemId, p])
+  );
+  const checklistRecordatorios = itemsRecordatorios.map((item) => {
+    const prog = progresoRecordatorioMap.get(item.id);
+    return {
+      id: item.id,
+      slug: item.slug,
+      nombre: item.titulo,
+      orden: item.orden,
+      requiereExamen: false,
+      completado: !!prog,
+      fechaCompletado: prog?.fechaCompletado || null,
+      calificacion: null,
+      aprobado: null,
+      esEvaluacionFinal: false,
+    };
+  });
+
   const completadosEmpresa = checklistEmpresa.filter((m) => m.completado).length;
   const completadosPuesto = checklistPuesto.filter((m) => m.completado).length;
+  const completadosRecordatorios = checklistRecordatorios.filter((m) => m.completado).length;
+  const modulosEmpresaCompleta = checklistEmpresa.length > 0 && completadosEmpresa === checklistEmpresa.length;
+  const modulosPuestoCompleta = checklistPuesto.length > 0 && completadosPuesto === checklistPuesto.length;
+  const recordatoriosCompleta = checklistRecordatorios.length > 0
+    && completadosRecordatorios === checklistRecordatorios.length;
 
   return {
     generadoEn: new Date(),
@@ -143,19 +197,28 @@ async function obtenerEvidenciaInduccion(usuarioId) {
       induccionEmpresaHabilitada: usuario.induccionEmpresaHabilitada,
       induccionPuestoHabilitada: usuario.induccionPuestoHabilitada,
     },
+    recordatorios: {
+      habilitada: necesitaRecordatorios,
+      modulos: checklistRecordatorios,
+      completados: completadosRecordatorios,
+      total: checklistRecordatorios.length,
+      completa: recordatoriosCompleta,
+    },
     induccionEmpresa: {
       habilitada: usuario.induccionEmpresaHabilitada,
       modulos: checklistEmpresa,
       completados: completadosEmpresa,
       total: checklistEmpresa.length,
-      completa: checklistEmpresa.length > 0 && completadosEmpresa === checklistEmpresa.length,
+      modulosCompleta: modulosEmpresaCompleta,
+      completa: modulosEmpresaCompleta && recordatoriosCompleta,
     },
     induccionPuesto: {
       habilitada: usuario.induccionPuestoHabilitada,
       modulos: checklistPuesto,
       completados: completadosPuesto,
       total: checklistPuesto.length,
-      completa: checklistPuesto.length > 0 && completadosPuesto === checklistPuesto.length,
+      modulosCompleta: modulosPuestoCompleta,
+      completa: modulosPuestoCompleta && recordatoriosCompleta,
     },
     evaluacionFinal: evalFinal
       ? {
@@ -169,7 +232,19 @@ async function obtenerEvidenciaInduccion(usuarioId) {
       examenesAprobados: examenesConCalificacion.filter((m) => m.aprobado).length,
       totalExamenes: examenesConCalificacion.length,
     },
+    resumenEmpresa,
+    resumenPuesto,
   };
+}
+
+function esInduccionEmpresaCompleta(evidencia) {
+  if (!evidencia) return false;
+  return evidencia.induccionEmpresa.habilitada && evidencia.induccionEmpresa.completa;
+}
+
+function esInduccionPuestoCompleta(evidencia) {
+  if (!evidencia) return false;
+  return evidencia.induccionPuesto.habilitada && evidencia.induccionPuesto.completa;
 }
 
 function esInduccionCompleta(evidencia) {
@@ -186,4 +261,9 @@ function esInduccionCompleta(evidencia) {
   return empresaOk && puestoOk;
 }
 
-module.exports = { obtenerEvidenciaInduccion, esInduccionCompleta };
+module.exports = {
+  obtenerEvidenciaInduccion,
+  esInduccionCompleta,
+  esInduccionEmpresaCompleta,
+  esInduccionPuestoCompleta,
+};

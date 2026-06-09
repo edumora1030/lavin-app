@@ -78,16 +78,16 @@ Para que arranque con Windows, usa **pm2-windows-startup** o `nssm`.
 ```bash
 npm run dev
 # Levanta API + Vue en un solo puerto
-# Local:    http://localhost:3000
-# Red WiFi: http://TU-IP-LOCAL:3000  (la consola imprime las IPs al arrancar)
+# Local:    http://localhost:3500
+# Red WiFi: http://TU-IP-LOCAL:3500  (la consola imprime las IPs al arrancar)
 ```
 
-En la misma red WiFi, comparte `http://TU-IP-LOCAL:3000`. No uses el puerto 5173 para compartir; ese es solo el servidor interno de Vite.
+En la misma red WiFi, comparte `http://TU-IP-LOCAL:3500`. No uses el puerto 5173 para compartir; ese es solo el servidor interno de Vite.
 
 Solo un servicio, si lo necesitas por separado:
 
 ```bash
-npm run dev:server   # API en :3000
+npm run dev:server   # API en :3500
 npm run dev:client   # Vue en :5173
 ```
 
@@ -103,7 +103,7 @@ npm start
 Los empleados acceden desde cualquier dispositivo en la red local navegando a:
 
 ```
-http://IP-DEL-SERVIDOR:3000
+http://IP-DEL-SERVIDOR:3500
 ```
 
 (o sin puerto si usas Nginx en el puerto 80).

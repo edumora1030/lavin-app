@@ -9,7 +9,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const PORT = parseInt(process.env.PORT || '3500', 10);
 const DEV_VITE_PORT = parseInt(process.env.DEV_VITE_PORT || '5173', 10);
 
 function getLocalIPv4Addresses() {
@@ -49,6 +49,7 @@ app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/usuarios', require('./routes/users.routes'));
 app.use('/api/modulos', require('./routes/modules.routes'));
 app.use('/api/checklist-puesto', require('./routes/checklistPuesto.routes'));
+app.use('/api/checklist-recordatorios', require('./routes/checklistRecordatorio.routes'));
 app.use('/api/progreso', require('./routes/progress.routes'));
 app.use('/api/examenes', require('./routes/exams.routes'));
 app.use('/api/videos', require('./routes/videos.routes'));

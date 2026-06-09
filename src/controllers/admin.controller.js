@@ -1,14 +1,19 @@
 const prisma = require('../config/db');
 
-const PROGRAMAS = ['operativo', 'administrativo'];
+const PROGRAMAS = ['operativo', 'administrativo', 'ayudante_general'];
 
 function bucketPrograma(programa) {
-  return programa === 'administrativo' ? 'administrativo' : 'operativo';
+  if (programa === 'administrativo') return 'administrativo';
+  if (programa === 'ayudante_general') return 'ayudante_general';
+  return 'operativo';
 }
 
 function whereEmpleadosPrograma(programa) {
   if (programa === 'administrativo') {
     return { rol: 'empleado', activo: true, programa: 'administrativo' };
+  }
+  if (programa === 'ayudante_general') {
+    return { rol: 'empleado', activo: true, programa: 'ayudante_general' };
   }
   return {
     rol: 'empleado',
@@ -168,8 +173,22 @@ function csv(rows, columnas) {
 }
 
 exports.reporteEmpleados = async (req, res) => {
-  const { empleados, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario } = await listarEmpleadosResumen(req);
-  const rows = mapEmpleadosResumen(empleados, modulosEmpresa, checklistPuestoTotal, checklistPorUsuario);
+  const {
+    empleados,
+    modulosEmpresa,
+    checklistPuestoTotal,
+    recordatoriosTotal,
+    checklistPorUsuario,
+    recordatoriosPorUsuario,
+  } = await listarEmpleadosResumen(req);
+  const rows = mapEmpleadosResumen(
+    empleados,
+    modulosEmpresa,
+    checklistPuestoTotal,
+    recordatoriosTotal,
+    checklistPorUsuario,
+    recordatoriosPorUsuario,
+  );
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="progreso-empleados.csv"');

@@ -17,6 +17,7 @@ enum Rol {
 enum Programa {
   administrativo
   operativo
+  ayudante_general
   ambos
 }
 
@@ -100,6 +101,7 @@ model Usuario {
   encuestaRespuestas  EncuestaRespuesta[]
   notificacionesRH       NotificacionRH[]
   checklistPuestoProgreso ChecklistPuestoProgreso[]
+  checklistRecordatorioProgreso ChecklistRecordatorioProgreso[]
 
   @@index([nomina])
   @@index([rol, activo])
@@ -319,6 +321,34 @@ model ChecklistPuestoProgreso {
 
   usuario Usuario             @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   item    ChecklistPuestoItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, itemId])
+  @@index([usuarioId])
+}
+
+model ChecklistRecordatorioItem {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  titulo      String
+  descripcion String?  @db.Text
+  orden       Int      @default(0)
+  activo      Boolean  @default(true)
+  creadoEn    DateTime @default(now())
+
+  progresos ChecklistRecordatorioProgreso[]
+
+  @@index([activo, orden])
+}
+
+model ChecklistRecordatorioProgreso {
+  id              String   @id @default(uuid())
+  usuarioId       String
+  itemId          String
+  completado      Boolean  @default(true)
+  fechaCompletado DateTime @default(now())
+
+  usuario Usuario                   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  item    ChecklistRecordatorioItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@unique([usuarioId, itemId])
   @@index([usuarioId])

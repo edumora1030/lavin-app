@@ -85,12 +85,12 @@ Un empleado **administrativo** puede tener habilitadas **ambas rutas** y elegir 
 Abre el navegador y escribe la dirección que te proporcionó Recursos Humanos o el equipo de TI. El formato típico es:
 
 ```
-http://IP-DEL-SERVIDOR:3000
+http://IP-DEL-SERVIDOR:3500
 ```
 
-**Ejemplo:** `http://192.168.1.50:3000`
+**Ejemplo:** `http://192.168.1.50:3500`
 
-> Si la empresa configuró un servidor web (Nginx) en el puerto 80, la URL puede ser simplemente `http://IP-DEL-SERVIDOR` sin el `:3000`.
+> Si la empresa configuró un servidor web (Nginx) en el puerto 80, la URL puede ser simplemente `http://IP-DEL-SERVIDOR` sin el `:3500`.
 
 ### 3.3 Credenciales iniciales (solo personal de RH y pruebas)
 
@@ -947,7 +947,7 @@ Subida y gestión de **archivos de video** para los módulos.
 | La app no arranca | Verificar PostgreSQL activo, `.env` configurado, `npm start` |
 | Error de base de datos | Revisar `DATABASE_URL` en `.env` |
 | Pantalla en blanco | Ejecutar `npm run build:client` antes de `npm start` |
-| No acceden desde otros dispositivos | Verificar IP del servidor y firewall del puerto 3000 |
+| No acceden desde otros dispositivos | Verificar IP del servidor y firewall del puerto 3500 |
 
 ---
 
@@ -958,7 +958,7 @@ Subida y gestión de **archivos de video** para los módulos.
 ```bash
 # Desarrollo (API + Vue en un solo puerto)
 npm run dev
-# → http://localhost:3000
+# → http://localhost:3500
 
 # Solo API
 npm run dev:server
@@ -995,7 +995,7 @@ El script configura PostgreSQL, `.env`, dependencias, migraciones, seed y PM2.
 | `DATABASE_URL` | Sí | — | `postgresql://lavin_user:lavin_pass@localhost:5432/induccion_db` |
 | `JWT_SECRET` | Sí | — | Cadena aleatoria larga para firmar tokens |
 | `JWT_EXPIRES_IN` | No | `8h` | Expiración de sesión |
-| `PORT` | No | `3000` | Puerto del servidor |
+| `PORT` | No | `3500` | Puerto del servidor |
 | `NODE_ENV` | No | — | `development` o `production` |
 | `UPLOAD_DIR` | No | `./uploads` | Carpeta de videos subidos |
 | `MAX_FILE_SIZE_MB` | No | `2000` | Límite de subida de video |
@@ -1072,7 +1072,7 @@ Los dumps se guardan en `backups/` comprimidos con fecha.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    ABRIR http://IP:3000                         │
+│                    ABRIR http://IP:3500                         │
 └────────────────────────────┬────────────────────────────────────┘
                              ▼
                     ┌────────────────┐

@@ -24,6 +24,24 @@ async function checklistPuestoCompleto(usuarioId) {
   return completados >= items.length;
 }
 
+async function recordatoriosCompletos(usuarioId) {
+  const items = await prisma.checklistRecordatorioItem.findMany({
+    where: { activo: true },
+    select: { id: true },
+  });
+  if (!items.length) return true;
+
+  const completados = await prisma.checklistRecordatorioProgreso.count({
+    where: {
+      usuarioId,
+      completado: true,
+      itemId: { in: items.map((i) => i.id) },
+    },
+  });
+
+  return completados >= items.length;
+}
+
 async function modulosEmpresaCompletos(usuarioId) {
   const slugs = MODULOS_EMPRESA.map((m) => m.slug);
   const modulos = await prisma.modulo.findMany({
@@ -69,6 +87,11 @@ exports.solicitar = async (req, res) => {
     if (!(await checklistPuestoCompleto(req.usuario.id))) {
       return Errores.validacion(res, [
         { campo: 'checklist', mensaje: 'Debes completar todas las actividades del checklist primero.' },
+      ]);
+    }
+    if (!(await recordatoriosCompletos(req.usuario.id))) {
+      return Errores.validacion(res, [
+        { campo: 'recordatorios', mensaje: 'Debes completar los recordatorios importantes primero.' },
       ]);
     }
   } else if (!(await modulosEmpresaCompletos(req.usuario.id))) {

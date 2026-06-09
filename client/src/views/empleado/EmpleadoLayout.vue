@@ -92,6 +92,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { House, LayoutGrid, LogOut, MessageCircle, UserRound } from '@lucide/vue';
 import { useAuthStore } from '../../stores/auth';
+import { programaLabel } from '../../constants/hero';
 import AppAlertDialog from '../../components/AppAlertDialog.vue';
 
 const auth = useAuthStore();
@@ -101,14 +102,10 @@ const profileMenuOpen = ref(false);
 
 const showChrome = computed(() => route.name !== 'empleado-gate');
 
-const badgeText = computed(() => {
-  const u = auth.user;
-  if (!u?.programa) return '';
-  return u.programa === 'administrativo' ? 'Administrativo' : 'Operativo';
-});
+const badgeText = computed(() => programaLabel(auth.user?.programa));
 
 const badgeClass = computed(() =>
-  auth.user?.programa === 'operativo' ? 'profile-badge--operativo' : 'profile-badge--administrativo'
+  auth.user?.programa === 'administrativo' ? 'profile-badge--administrativo' : 'profile-badge--operativo'
 );
 
 const canChangeScope = computed(() =>

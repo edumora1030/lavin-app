@@ -15,7 +15,7 @@
           <td colspan="5" class="evidencia-checklist__empty">Sin módulos registrados</td>
         </tr>
         <tr v-for="(modulo, idx) in modulos" :key="modulo.id" :class="{ 'is-alt': idx % 2 === 1 }">
-          <td class="col-num">{{ idx + 1 }}</td>
+          <td class="col-num">{{ startIndex + idx + 1 }}</td>
           <td class="col-modulo">{{ modulo.nombre }}</td>
           <td class="col-estado">
             <span class="estado-cell" :class="{ 'is-done': modulo.completado }">
@@ -38,6 +38,7 @@ import { Check } from '@lucide/vue';
 
 defineProps({
   modulos: { type: Array, default: () => [] },
+  startIndex: { type: Number, default: 0 },
 });
 
 function fmtFecha(date) {
@@ -56,8 +57,8 @@ function fmtCalificacion(modulo) {
   if (!modulo.requiereExamen) return 'N/A';
   if (modulo.calificacion != null) {
     return modulo.aprobado
-      ? `${modulo.calificacion}% · Aprobado`
-      : `${modulo.calificacion}% · No aprobado`;
+      ? `${modulo.calificacion}% - Aprobado`
+      : `${modulo.calificacion}% - No aprobado`;
   }
   return modulo.completado ? 'Completado' : 'Pendiente';
 }
@@ -85,7 +86,6 @@ function calClass(modulo) {
   table-layout: fixed;
 }
 
-/* encabezado navy */
 .evidencia-checklist__table thead tr {
   background: #1e3a5f;
 }
@@ -100,7 +100,6 @@ function calClass(modulo) {
   color: #fff;
 }
 
-/* filas */
 .evidencia-checklist__table td {
   padding: 0.45rem 0.625rem;
   text-align: left;
@@ -118,18 +117,15 @@ function calClass(modulo) {
   background: #f8fafc;
 }
 
-/* anchos columna — replica las proporciones del PDF */
 .col-num   { width: 32px; text-align: center !important; }
-.col-modulo{ /* toma el espacio restante */ word-break: break-word; }
+.col-modulo{ word-break: break-word; }
 .col-estado{ width: 105px; }
 .col-fecha { width: 90px;  white-space: nowrap; }
 .col-cal   { width: 130px; }
 
-/* colores calificación */
 .col-cal.is-ok      { color: #16a34a; font-weight: 600; }
 .col-cal.is-pending { color: #b45309; }
 
-/* celda de estado con ícono circular */
 .estado-cell {
   display: inline-flex;
   align-items: center;

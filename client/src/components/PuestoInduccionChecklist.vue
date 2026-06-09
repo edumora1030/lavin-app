@@ -61,7 +61,11 @@
       <p v-else-if="notasGuardadas" class="puesto-checklist__save-hint is-ok">Cambios guardados</p>
     </div>
 
-    <div v-if="checklistCompleto" class="puesto-checklist__finish">
+    <p v-if="checklistCompleto && !recordatoriosCompleta" class="puesto-checklist__finish-hint">
+      Completa los recordatorios importantes para finalizar la inducción.
+    </p>
+
+    <div v-if="puedeFinalizar" class="puesto-checklist__finish">
       <button
         v-if="!yaNotificado"
         type="button"
@@ -93,6 +97,7 @@ const props = defineProps({
   comentariosInicial: { type: String, default: '' },
   temasInicial: { type: String, default: '' },
   yaNotificado: { type: Boolean, default: false },
+  recordatoriosCompleta: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(['refresh', 'finalizada']);
@@ -109,6 +114,10 @@ let notasTimer = null;
 
 const checklistCompleto = computed(
   () => props.items.length > 0 && props.items.every((item) => isComplete(item.id))
+);
+
+const puedeFinalizar = computed(
+  () => checklistCompleto.value && props.recordatoriosCompleta
 );
 
 watch(
@@ -325,6 +334,16 @@ async function guardarNotas() {
 
 .puesto-checklist__save-hint.is-ok {
   color: var(--success, #16a34a);
+}
+
+.puesto-checklist__finish-hint {
+  margin: 0.75rem 0 0;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
 }
 
 .puesto-checklist__finish {

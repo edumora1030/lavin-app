@@ -1,9 +1,13 @@
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const prisma = require('../config/db');
-const { Errores } = require('../utils/errores');
+const { errorResponse, Errores } = require('../utils/errores');
 const { auditar } = require('../utils/auditoria');
-const { obtenerEvidenciaInduccion, esInduccionCompleta } = require('../utils/evidenciaInduccion');
+const {
+  obtenerEvidenciaInduccion,
+  esInduccionEmpresaCompleta,
+  esInduccionPuestoCompleta,
+} = require('../utils/evidenciaInduccion');
 const { generarPdfEvidencia } = require('../utils/generarPdfEvidencia');
 
 function passwordInicial(nomina) {
@@ -80,9 +84,41 @@ exports.actualizar = async (req, res) => {
   }
 };
 
-exports.desactivar = async (req, res) => {
-  await prisma.usuario.update({ where: { id: req.params.id }, data: { activo: false } });
-  await auditar({ usuarioId: req.usuario.id, accion: 'usuario_desactivado', detalle: { id: req.params.id } });
+exports.eliminar = async (req, res) => {
+  const { id } = req.params;
+
+  if (id === req.usuario.id) {
+    return errorResponse(res, 400, 'ELIMINACION_NO_PERMITIDA', 'No puedes eliminar tu propia cuenta.');
+  }
+
+  const u = await prisma.usuario.findUnique({ where: { id } });
+  if (!u) return Errores.noEncontrado(res, 'Usuario');
+
+  if (u.rol === 'admin') {
+    const otrosAdmins = await prisma.usuario.count({
+      where: { rol: 'admin', activo: true, id: { not: id } },
+    });
+    if (otrosAdmins === 0) {
+      return errorResponse(res, 400, 'ELIMINACION_NO_PERMITIDA', 'No puedes eliminar el último administrador activo.');
+    }
+  }
+
+  try {
+    await prisma.$transaction([
+      prisma.usuario.updateMany({ where: { creadoPor: id }, data: { creadoPor: null } }),
+      prisma.video.updateMany({ where: { subidoPor: id }, data: { subidoPor: req.usuario.id } }),
+      prisma.usuario.delete({ where: { id } }),
+    ]);
+  } catch (err) {
+    console.error('Error eliminando usuario:', err);
+    return errorResponse(res, 500, 'ERROR_ELIMINACION', 'No se pudo eliminar el usuario.');
+  }
+
+  await auditar({
+    usuarioId: req.usuario.id,
+    accion: 'usuario_eliminado',
+    detalle: { id, nomina: u.nomina, nombre: u.nombre },
+  });
   return res.json({ ok: true });
 };
 
@@ -113,27 +149,36 @@ exports.evidencia = async (req, res) => {
   return res.json(data);
 };
 
-exports.evidenciaPdf = async (req, res) => {
+async function enviarPdfEvidencia(req, res, tipo) {
   try {
     const data = await obtenerEvidenciaInduccion(req.params.id);
     if (!data) return Errores.noEncontrado(res, 'Usuario');
-    if (!esInduccionCompleta(data)) {
+
+    const completa = tipo === 'empresa'
+      ? esInduccionEmpresaCompleta(data)
+      : esInduccionPuestoCompleta(data);
+
+    if (!completa) {
+      const mensaje = tipo === 'empresa'
+        ? 'La hoja de evidencia de empresa solo está disponible cuando el colaborador completó la inducción a la empresa.'
+        : 'La hoja de evidencia de puesto solo está disponible cuando el colaborador completó la inducción al puesto.';
       return res.status(422).json({
         error: true,
         codigo: 'INDUCCION_INCOMPLETA',
-        mensaje: 'La hoja de evidencia solo está disponible cuando el colaborador completó toda su inducción.',
+        mensaje,
         status: 422,
       });
     }
 
-    const pdf = await generarPdfEvidencia(data);
-    const filename = `evidencia-induccion-${data.empleado.nomina}.pdf`;
+    const pdf = await generarPdfEvidencia(data, tipo);
+    const suffix = tipo === 'empresa' ? 'empresa' : 'puesto';
+    const filename = `evidencia-induccion-${suffix}-${data.empleado.nomina}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     return res.send(pdf);
   } catch (err) {
-    console.error('Error generando PDF de evidencia:', err);
+    console.error(`Error generando PDF de evidencia (${tipo}):`, err);
     return res.status(500).json({
       error: true,
       codigo: 'PDF_ERROR',
@@ -141,4 +186,7 @@ exports.evidenciaPdf = async (req, res) => {
       status: 500,
     });
   }
-};
+}
+
+exports.evidenciaPdfEmpresa = (req, res) => enviarPdfEvidencia(req, res, 'empresa');
+exports.evidenciaPdfPuesto = (req, res) => enviarPdfEvidencia(req, res, 'puesto');

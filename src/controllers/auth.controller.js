@@ -239,7 +239,9 @@ exports.me = async (req, res) => {
 
 exports.actualizarPerfil = async (req, res) => {
   const { programa, alcance } = req.body;
-  if (programa && !['administrativo', 'operativo'].includes(programa)) return Errores.validacion(res, [{ campo: 'programa', mensaje: 'Inválido.' }]);
+  if (programa && !['administrativo', 'operativo', 'ayudante_general'].includes(programa)) {
+    return Errores.validacion(res, [{ campo: 'programa', mensaje: 'Inválido.' }]);
+  }
   if (alcance && !['empresa', 'puesto'].includes(alcance)) return Errores.validacion(res, [{ campo: 'alcance', mensaje: 'Inválido.' }]);
 
   const usuario = await prisma.usuario.update({

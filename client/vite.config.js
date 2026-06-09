@@ -18,9 +18,9 @@ export default defineConfig({
     open: false,
     allowedHosts: true,
     proxy: {
-      '/api': { target: 'http://127.0.0.1:3000', changeOrigin: true },
-      '/uploads': { target: 'http://127.0.0.1:3000', changeOrigin: true },
-      '/assets': { target: 'http://127.0.0.1:3000', changeOrigin: true },
+      '/api': { target: 'http://127.0.0.1:3500', changeOrigin: true },
+      '/uploads': { target: 'http://127.0.0.1:3500', changeOrigin: true },
+      '/assets': { target: 'http://127.0.0.1:3500', changeOrigin: true },
     },
   },
 });

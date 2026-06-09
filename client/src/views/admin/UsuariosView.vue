@@ -2,7 +2,7 @@
   <div class="usuarios-page">
     <div class="admin-page-header">
       <h1>Usuarios</h1>
-      <p>Administra cuentas de empleados, encargados de área y RH</p>
+      <p>Administra cuentas de colaboradores y RH</p>
     </div>
 
     <div class="usuarios-card">
@@ -111,6 +111,16 @@
                   >
                     <CircleCheck :size="15" stroke-width="2" />
                   </button>
+                  <button
+                    v-if="u.id !== auth.user?.id"
+                    type="button"
+                    class="icon-btn icon-btn--danger"
+                    title="Eliminar usuario"
+                    aria-label="Eliminar usuario"
+                    @click="eliminarUsuario(u)"
+                  >
+                    <Trash2 :size="15" stroke-width="2" />
+                  </button>
                 </div>
               </td>
             </tr>
@@ -147,8 +157,7 @@
         <div class="form-group">
           <label>Tipo de cuenta</label>
           <select v-model="form.rol" @change="onRolChange">
-            <option value="empleado">Empleado</option>
-            <option value="supervisor">Encargado de área</option>
+            <option value="empleado">Colaborador</option>
             <option value="admin">RH (Administrador)</option>
           </select>
         </div>
@@ -157,6 +166,7 @@
           <select v-model="form.programa">
             <option value="operativo">Operativo</option>
             <option value="administrativo">Administrativo</option>
+            <option value="ayudante_general">Ayudante general</option>
           </select>
         </div>
         <div class="form-group">
@@ -187,14 +197,16 @@
 
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
-import { Pencil, Ban, CircleCheck, KeyRound } from '@lucide/vue';
+import { Pencil, Ban, CircleCheck, KeyRound, Trash2 } from '@lucide/vue';
 import { useAppAlert } from '../../composables/useAppAlert';
 import { useAppConfirm } from '../../composables/useAppConfirm';
+import { useAuthStore } from '../../stores/auth';
 import { api } from '../../api';
 import AppModal from '../../components/AppModal.vue';
 import AdminFilterBar from '../../components/AdminFilterBar.vue';
 const { showAlert } = useAppAlert();
 const { showConfirm } = useAppConfirm();
+const auth = useAuthStore();
 
 const q = ref('');
 const frol = ref('');
@@ -212,8 +224,7 @@ const areasActivas = computed(() => areas.value.filter((a) => a.activo));
 
 const filtrosRol = computed(() => [
   { value: '', label: 'Todos', count: list.value.length },
-  { value: 'empleado', label: 'Empleado', count: list.value.filter((u) => u.rol === 'empleado').length },
-  { value: 'supervisor', label: 'Encargado', count: list.value.filter((u) => u.rol === 'supervisor').length },
+  { value: 'empleado', label: 'Colaborador', count: list.value.filter((u) => u.rol === 'empleado').length },
   { value: 'admin', label: 'RH', count: list.value.filter((u) => u.rol === 'admin').length },
 ]);
 
@@ -228,13 +239,14 @@ function emptyForm() {
 function rolLabel(r) {
   if (r === 'admin') return 'RH';
   if (r === 'supervisor') return 'Encargado';
-  return 'Empleado';
+  return 'Colaborador';
 }
 
 function programaDisplay(u) {
   if (u.rol !== 'empleado') return '—';
   if (u.programa === 'administrativo') return 'Administrativo';
   if (u.programa === 'operativo') return 'Operativo';
+  if (u.programa === 'ayudante_general') return 'Ayudante general';
   return '—';
 }
 
@@ -320,7 +332,7 @@ async function guardar() {
       showAlert({ title: 'Usuario creado', message: `Contraseña inicial: ${ult4}Lavin2024`, variant: 'info' });
     } else {
       showAlert({
-        title: 'Empleado creado',
+        title: 'Colaborador creado',
         message: 'El colaborador creará su contraseña al ingresar su nómina por primera vez.',
         variant: 'info',
       });
@@ -340,6 +352,31 @@ async function toggleActivo(u, activo) {
   if (!ok) return;
   await api.put(`/api/usuarios/${u.id}`, { activo });
   await load();
+}
+
+async function eliminarUsuario(u) {
+  const ok = await showConfirm({
+    title: '¿Eliminar usuario?',
+    message: `Se eliminará permanentemente a ${u.nombre} (${u.nomina}) y todo su progreso. Esta acción no se puede deshacer.`,
+    variant: 'danger',
+    confirmLabel: 'Eliminar',
+  });
+  if (!ok) return;
+  try {
+    await api.del(`/api/usuarios/${u.id}`);
+    showAlert({
+      title: 'Usuario eliminado',
+      message: `${u.nombre} fue eliminado del sistema.`,
+      variant: 'info',
+    });
+    await load();
+  } catch (e) {
+    showAlert({
+      title: 'No se pudo eliminar',
+      message: e.message || 'Ocurrió un error al eliminar el usuario.',
+      variant: 'error',
+    });
+  }
 }
 
 async function restablecerPassword(u) {
