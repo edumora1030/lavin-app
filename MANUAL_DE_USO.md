@@ -1,6 +1,6 @@
 # Manual de uso — Plataforma de Inducción RR.HH. Lavín
 
-**Versión:** 1.0  
+**Versión:** 1.1  
 **Última actualización:** Junio 2026  
 **Audiencia:** Empleados, encargados de área, personal de Recursos Humanos y equipo de TI
 
@@ -43,8 +43,9 @@ La plataforma digitaliza el **programa de inducción corporativa** que antes se 
 - Responda **exámenes** para comprobar que comprendió el contenido.
 - Complete una **encuesta de satisfacción** al terminar.
 - Realice su **inducción al puesto** mediante un checklist de actividades (solo personal administrativo).
+- Marque los **recordatorios importantes** (recorrido en planta y código de conducta), obligatorios para generar la evidencia.
 - Envíe **dudas** directamente a Recursos Humanos.
-- Solicite un **recorrido en planta** y acceso a **sistemas** una vez terminada la inducción a la empresa.
+- Solicite acceso a **sistemas** una vez terminada la inducción a la empresa (el recorrido en planta también se registra en los recordatorios).
 
 Al mismo tiempo, Recursos Humanos puede:
 
@@ -52,14 +53,16 @@ Al mismo tiempo, Recursos Humanos puede:
 - Ver el **progreso** de cada colaborador en tiempo real.
 - Responder dudas y atender solicitudes.
 - Subir videos y editar módulos.
-- Generar **reportes PDF** y exportar **CSV** con evidencia de la inducción.
+- Generar **dos hojas de evidencia PDF** (empresa y puesto, por separado) y exportar **CSV** con el progreso.
 
 ### 2.2 Dos rutas de inducción
 
 | Ruta | ¿Quién la usa? | ¿Qué contiene? |
 |------|----------------|----------------|
-| **Inducción a la empresa** | Todos los empleados habilitados (operativos y administrativos) | 10 módulos secuenciales con video, examen y encuesta final |
+| **Inducción a la empresa** | Colaboradores habilitados (operativos, administrativos y ayudante general) | 10 módulos secuenciales con video, examen y encuesta final |
 | **Inducción al puesto** | Solo empleados del programa **Administrativo** con acceso habilitado | Checklist de 13 actividades presenciales con su encargado/mentor |
+
+Además, **todos** los colaboradores con inducción empresa y/o puesto habilitada deben completar los **2 recordatorios importantes** (recorrido en planta y código de conducta). El progreso se comparte entre ambas rutas: marcarlos una vez cuenta para las dos hojas de evidencia.
 
 Un empleado **administrativo** puede tener habilitadas **ambas rutas** y elegir cuál realizar primero desde la pantalla principal.
 
@@ -126,6 +129,7 @@ La plataforma tiene **tres tipos de cuenta**. Cada una ve pantallas diferentes a
 |----------|-------------------|------------------|
 | **Operativo** | Sí (si RH lo habilita) | No |
 | **Administrativo** | Sí (si RH lo habilita) | Sí (si RH lo habilita, además de empresa) |
+| **Ayudante general** | Sí (si RH lo habilita) | No |
 
 ### 4.2 Encargado de área (Supervisor)
 
@@ -241,7 +245,7 @@ Cuando ya estás dentro del programa de inducción, la parte superior muestra:
 | Elemento | Qué hace |
 |----------|----------|
 | **Logo LAVIN · Recursos Humanos** | Enlace al inicio de la inducción |
-| **Badge Administrativo / Operativo** | Indica tu tipo de programa. Si tienes ambas rutas habilitadas, al pulsarlo aparece un menú para cambiar entre *Inducción a la empresa* e *Inducción al puesto* |
+| **Badge Administrativo / Operativo / Ayudante general** | Indica tu tipo de programa. Si tienes ambas rutas habilitadas, al pulsarlo aparece un menú para cambiar entre *Inducción a la empresa* e *Inducción al puesto* |
 | **Inicio** | Desplaza la página al banner de bienvenida |
 | **Módulos / Checklist** | Desplaza a la lista de módulos o al checklist (según la ruta activa) |
 | **Contacto** | Desplaza a la sección de contactos de RH |
@@ -283,7 +287,7 @@ Pulsa la tarjeta deseada para entrar a esa ruta.
 Al entrar a la inducción verás:
 
 - **Foto de las instalaciones** de Lavín a pantalla completa.
-- **Badge** con el tipo de programa (Administrativo u Operativo).
+- **Badge** con el tipo de programa (Administrativo, Operativo o Ayudante general).
 - **Título de bienvenida** personalizado.
 - **Descripción** del programa.
 - Botón **Comenzar inducción** → desplaza suavemente hacia la sección de módulos.
@@ -310,9 +314,32 @@ En ambas rutas (empresa y puesto) aparece un panel **"Tu progreso"** que muestra
 
 - **Porcentaje completado** (ej. `45% completado`).
 - **Barra visual** de avance.
-- **Nota descriptiva** (ej. *"3 de 10 módulos completados"* o *"5 de 13 actividades completadas"*).
+- **Nota descriptiva** (ej. *"8 de 12 actividades completadas"*, incluyendo módulos o checklist **más** los recordatorios importantes).
 
-Este porcentaje se actualiza automáticamente cada vez que completas un módulo o marcas una actividad del checklist.
+Este porcentaje se actualiza automáticamente cada vez que completas un módulo, marcas una actividad del checklist o marcas un recordatorio importante.
+
+---
+
+### 6.7 Recordatorios importantes
+
+En **ambas rutas** (empresa y puesto), arriba de los módulos o del checklist, aparece un bloque amarillo titulado **Recordatorios importantes** con **2 actividades obligatorias**:
+
+| # | Recordatorio | Cuándo marcarlo |
+|---|--------------|-----------------|
+| 1 | **Recorrido en la planta** | Cuando hayas realizado el recorrido por las instalaciones |
+| 2 | **Código de conducta y ética empresarial** | Cuando hayas leído y comprendido el código de conducta |
+
+**Cómo usarlos:**
+
+1. Pulsa el **checkbox circular** a la izquierda de cada ítem al completarlo.
+2. Puedes **desmarcar** si te equivocaste.
+3. El avance se guarda de inmediato y **es el mismo** en empresa y puesto (no necesitas marcarlos dos veces si tienes ambas rutas).
+
+**Importante:**
+
+- Son **obligatorios** para descargar cualquier hoja de evidencia PDF.
+- Al marcar **Recorrido en la planta**, el sistema también envía una **notificación a RH** (si aún no existía), para que coordinen la visita.
+- Hasta que no estén los 2 recordatorios marcados, el botón de evidencia permanece deshabilitado aunque hayas terminado todos los módulos o el checklist de puesto.
 
 ---
 
@@ -433,9 +460,11 @@ Cuando terminas **todos** los módulos de empresa, la interfaz cambia a la vista
 
 #### Sección: Solicita tu recorrido y sistemas
 
+> **Nota:** El **recorrido en planta** también se registra en los **Recordatorios importantes** (sección 6.7). Al marcarlo ahí, RH recibe la notificación. Los botones de esta sección sirven además para solicitar **sistemas** y como referencia del estado de las solicitudes.
+
 | Botón | Qué hace | Estados posibles |
 |-------|----------|------------------|
-| **Recorrido en planta** | Envía notificación a RH para coordinar visita física a instalaciones | Pendiente → Atendida |
+| **Recorrido en planta** | Envía notificación a RH para coordinar visita física (si no se generó ya al marcar el recordatorio) | Pendiente → Atendida |
 | **Sistemas** | Envía notificación a RH para coordinar acceso a sistemas informáticos | Pendiente → Atendida |
 
 - Solo puedes solicitar cada paso **una vez**.
@@ -500,11 +529,13 @@ Al guardar aparece brevemente: *"Cambios guardados"*.
 
 #### Finalizar inducción al puesto
 
-1. Debes tener **las 13 actividades marcadas**.
-2. Aparece el botón **Finalizar inducción**.
-3. Al pulsarlo, el sistema envía una **notificación a Recursos Humanos** indicando que terminaste.
-4. Mensaje de confirmación: *"RH fue notificado"* / *"Inducción finalizada. RH fue notificado."*
-5. El botón desaparece y no puedes enviar la notificación de nuevo.
+1. Debes tener **las 13 actividades del checklist marcadas**.
+2. Debes tener **los 2 recordatorios importantes** marcados (sección 6.7).
+3. Si falta algún recordatorio, verás el mensaje: *"Completa los recordatorios importantes para finalizar la inducción."*
+4. Cuando todo está completo, aparece el botón **Finalizar inducción**.
+5. Al pulsarlo, el sistema envía una **notificación a Recursos Humanos** indicando que terminaste.
+6. Mensaje de confirmación: *"RH fue notificado"* / *"Inducción finalizada. RH fue notificado."*
+7. El botón desaparece y no puedes enviar la notificación de nuevo.
 
 ---
 
@@ -576,10 +607,10 @@ Los correos y teléfonos son enlaces clicables (abren tu app de correo o marcado
 
 | Tipo | Cuándo se genera | Quién la atiende |
 |------|------------------|------------------|
-| `recorrido_planta` | Tras completar inducción empresa, al solicitar recorrido | RH |
+| `recorrido_planta` | Al marcar el recordatorio **Recorrido en la planta** o al solicitar recorrido tras completar la inducción empresa | RH |
 | `sistemas` | Tras completar inducción empresa, al solicitar acceso a sistemas | RH |
 | `recuperar_password` | Al pulsar "¿Olvidaste tu contraseña?" en login | RH |
-| `induccion_puesto_completada` | Al pulsar "Finalizar inducción" en checklist de puesto | RH |
+| `induccion_puesto_completada` | Al pulsar "Finalizar inducción" en checklist de puesto (con recordatorios completos) | RH |
 
 ---
 
@@ -636,7 +667,7 @@ Los correos y teléfonos son enlaces clicables (abren tu app de correo o marcado
 |------------------|------|-------------------|
 | **Dashboard** | `/admin/dashboard` | Métricas y gráficas del programa |
 | **Usuarios** | `/admin/usuarios` | Crear, editar y desactivar cuentas |
-| **Progreso** | `/admin/progreso` | Ver avance y descargar evidencia PDF |
+| **Progreso** | `/admin/progreso` | Ver avance y descargar hojas de evidencia PDF (empresa y puesto) |
 | **Módulos** | `/admin/modulos` | Editar módulos, ítems y exámenes |
 | **Checklist puesto** | `/admin/checklist-puesto` | Gestionar actividades de inducción al puesto |
 | **Áreas** | `/admin/areas` | Catálogo de departamentos |
@@ -693,7 +724,7 @@ Los correos y teléfonos son enlaces clicables (abren tu app de correo o marcado
 | Elemento | Función |
 |----------|---------|
 | **Buscar** | Filtra por nombre o nómina en tiempo real |
-| **Filtros por rol** | Todos / Empleado / Encargado / RH |
+| **Filtros por rol** | Todos / Colaborador / RH |
 | **+ Nuevo usuario** | Abre formulario de creación |
 
 **Tabla de usuarios:**
@@ -702,18 +733,19 @@ Los correos y teléfonos son enlaces clicables (abren tu app de correo o marcado
 |---------|-------------|
 | Nómina | Identificador único |
 | Nombre | Nombre completo |
-| Tipo | Empleado, Encargado de área o RH |
-| Programa | Operativo, Administrativo o — |
+| Tipo | Colaborador o RH |
+| Programa | Operativo, Administrativo, Ayudante general o — |
 | Área | Departamento asignado |
 | Estado | Activo / Inactivo |
-| Acciones | Editar, restablecer contraseña, activar/desactivar |
+| Acciones | Editar, restablecer contraseña, eliminar, activar/desactivar |
 
 **Acciones por usuario:**
 
 | Botón | Qué hace |
 |-------|----------|
 | ✏️ **Editar** | Modifica datos del usuario |
-| 🔑 **Restablecer contraseña** | (Solo empleados) Borra la contraseña para que cree una nueva en el próximo acceso |
+| 🔑 **Restablecer contraseña** | (Solo colaboradores) Borra la contraseña para que cree una nueva en el próximo acceso |
+| 🗑️ **Eliminar** | Elimina permanentemente al colaborador y todo su progreso (acción irreversible) |
 | 🚫 **Deshabilitar** | Desactiva la cuenta; no podrá iniciar sesión |
 | ✅ **Habilitar** | Reactiva una cuenta desactivada |
 
@@ -724,15 +756,15 @@ Los correos y teléfonos son enlaces clicables (abren tu app de correo o marcado
 | **Nombre** | Sí | Nombre completo del colaborador |
 | **Nómina** | Sí | Número único. **No editable** al editar un usuario existente |
 | **Email** | No | Correo de contacto |
-| **Tipo de cuenta** | Sí | Empleado / Encargado de área / RH (Administrador) |
-| **Programa** | Solo empleados | Operativo o Administrativo |
+| **Tipo de cuenta** | Sí | **Colaborador** o **RH (Administrador)** |
+| **Programa** | Solo colaboradores | Operativo, Administrativo o Ayudante general |
 | **Área** | No | Select del catálogo de áreas activas |
-| **Habilitar Inducción a la empresa** | Checkbox | Si está marcado, el empleado puede ver los 10 módulos |
+| **Habilitar Inducción a la empresa** | Checkbox | Si está marcado, el colaborador puede ver los 10 módulos |
 | **Habilitar Inducción al puesto** | Checkbox | Solo visible si programa = Administrativo |
 
 > **Flujo típico para dar de alta a un colaborador nuevo:**
 > 1. Crear usuario con su nómina y nombre.
-> 2. Asignar programa (Operativo o Administrativo) y área.
+> 2. Asignar programa (Operativo, Administrativo o Ayudante general) y área.
 > 3. Marcar **Habilitar Inducción a la empresa** (y puesto si aplica).
 > 4. El colaborador ingresa con su nómina y crea su contraseña en el primer acceso.
 
@@ -740,23 +772,46 @@ Los correos y teléfonos son enlaces clicables (abren tu app de correo o marcado
 
 ### 12.4 Progreso
 
-Permite ver el **avance detallado** de cada empleado y generar evidencia documental.
+Permite ver el **avance detallado** de cada colaborador y generar las **hojas de evidencia** en PDF.
 
 **Funciones principales:**
 
 | Función | Descripción |
 |---------|-------------|
-| **Listado de empleados** | Tabla con filtros por área, programa y estado |
-| **Ver reporte** | Abre ficha detallada con módulos completados, calificaciones de exámenes e intentos |
-| **Descargar evidencia PDF** | Genera documento PDF con constancia de inducción |
-| **Exportar CSV** | Descarga resumen de progreso de todos los empleados |
+| **Listado de colaboradores** | Tabla con búsqueda y filtros (completo, en curso, sin iniciar) |
+| **Ver reporte** (👁) | Abre modal con vista previa de la evidencia; pestañas **Empresa** y **Puesto** |
+| **Descargar evidencia empresa** (📥) | PDF de inducción a la empresa (solo si está completa) |
+| **Descargar evidencia puesto** (📋) | PDF de inducción al puesto; siempre visible, deshabilitado si no aplica o está incompleta |
+| **Exportar CSV** | Descarga resumen de progreso de todos los colaboradores |
 
-**La evidencia PDF incluye:**
-- Datos del colaborador (nombre, nómina, área, programa).
-- Lista de módulos completados con fechas.
-- Calificaciones de exámenes.
-- Respuestas de encuesta (si aplica).
-- Estado del checklist de puesto (si aplica).
+**Requisitos para descargar cada PDF:**
+
+| Hoja | Requisitos |
+|------|------------|
+| **Evidencia empresa** | 10 módulos completados **+** 2 recordatorios importantes |
+| **Evidencia puesto** | 13 ítems del checklist completados **+** 2 recordatorios importantes |
+
+Si falta algo, el botón aparece **deshabilitado** con un mensaje al pasar el cursor (ej. *"Faltan recordatorios importantes"*, *"Módulos de empresa incompletos"*, *"Inducción al puesto no habilitada"*).
+
+**Las dos hojas de evidencia PDF incluyen:**
+
+**Hoja de evidencia de inducción a la empresa:**
+- Datos del colaborador (nombre, nómina, programa, área, fecha de emisión).
+- Resumen: inducción empresa, inducción puesto, evaluación final, promedio de exámenes.
+- Tabla de los **10 módulos** con estado, fecha y calificación.
+- Tabla de **recordatorios importantes** (2 ítems).
+- Evaluación final y resumen de exámenes.
+- **Firmas de conformidad** (5 espacios: Nombre, Fecha, Firma, Área).
+- Referencia: Ref. P-GP-12 F-GP-56 Rev. 3.
+
+**Hoja de evidencia de inducción al puesto:**
+- Datos del colaborador y resumen de avance.
+- Tabla del **checklist de puesto** (13 ítems, presentados en dos bloques).
+- Tabla de **recordatorios importantes** (los mismos 2 ítems, mismo estado que en empresa).
+- **Firmas de conformidad** (3 espacios).
+- Referencia: Ref. P-GP-12 F-GP-56 Rev. 3.
+
+> Los recordatorios se marcan **una sola vez** por colaborador; el mismo estado y fecha aparecen en ambas hojas.
 
 ---
 
@@ -928,13 +983,17 @@ Subida y gestión de **archivos de video** para los módulos.
 | Olvidé mi contraseña | — | Usar "¿Olvidaste tu contraseña?" y esperar respuesta de RH |
 | La sesión se cerró sola | Token expirado (8 h) o cerraste el navegador | Volver a iniciar sesión |
 | No veo "Inducción al puesto" | Eres operativo o no está habilitada | Solo administrativos con acceso habilitado por RH |
+| No puedo descargar evidencia PDF | Faltan módulos, checklist de puesto o recordatorios | Completar todo lo requerido; revisar tooltips en Progreso (RH) |
+| Marqué recorrido pero RH no fue notificado | Ya existía una solicitud previa | Revisar en Notificaciones; el recordatorio igual cuenta para evidencia |
 
 ### Para Recursos Humanos
 
 | Problema | Qué hacer |
 |----------|-----------|
 | Empleado no puede entrar | Verificar que esté **Activo** y tenga inducción habilitada |
-| Restablecer contraseña | Usuarios → 🔑 Restablecer contraseña → empleado crea nueva en primer acceso |
+| Restablecer contraseña | Usuarios → 🔑 Restablecer contraseña → colaborador crea nueva en primer acceso |
+| Botón PDF deshabilitado en Progreso | Verificar módulos/checklist **y** los 2 recordatorios importantes |
+| Eliminar colaborador | Usuarios → 🗑️ Eliminar (borra progreso permanentemente) |
 | Video no se reproduce | Verificar que el video esté subido y vinculado al módulo correcto |
 | Subida de video falla (413) | El archivo supera 2 GB; comprimir o dividir |
 | Subida falla (415) | Formato no permitido; usar MP4, WebM o MOV |
@@ -1058,13 +1117,17 @@ Los dumps se guardan en `backups/` comprimidos con fecha.
 | **Módulo** | Unidad de contenido de la inducción a la empresa (hay 10) |
 | **Alcance** | Tipo de inducción: `empresa` o `puesto` |
 | **Checklist** | Lista de actividades de inducción al puesto (13 ítems) |
+| **Recordatorios importantes** | 2 actividades obligatorias compartidas (recorrido en planta y código de conducta) |
 | **Slug** | Identificador técnico único de un módulo (no visible para empleados) |
 | **JWT** | Token de sesión que mantiene tu login activo |
 | **On-premise** | Software instalado en servidores de la empresa, no en la nube |
 | **CSV** | Archivo de valores separados por comas, abrible en Excel |
-| **PDF evidencia** | Constancia documental de que un colaborador completó su inducción |
+| **PDF evidencia empresa** | Constancia de inducción a la empresa (10 módulos + recordatorios) |
+| **PDF evidencia puesto** | Constancia de inducción al puesto (13 ítems + recordatorios) |
+| **Firmas de conformidad** | Tabla al pie de cada hoja de evidencia para firmas de responsables |
 | **Programa operativo** | Colaboradores de planta/producción |
 | **Programa administrativo** | Colaboradores de oficina/gestión |
+| **Programa ayudante general** | Colaboradores del programa Ayudante general (inducción empresa, sin puesto) |
 
 ---
 
@@ -1110,8 +1173,17 @@ Los dumps se guardan en `backups/` comprimidos con fecha.
                                                   ▼
                                     ┌─────────────────────────┐
                                     │ Videos → Exámenes →     │
-                                    │ Encuesta → Recorrido /  │
-                                    │ Sistemas                │
+                                    │ Encuesta                │
+                                    └────────┬────────────────┘
+                                             ▼
+                                    ┌─────────────────────────┐
+                                    │ Recordatorios           │
+                                    │ importantes (2 ítems)   │
+                                    └────────┬────────────────┘
+                                             ▼
+                                    ┌─────────────────────────┐
+                                    │ Solicitar sistemas /    │
+                                    │ Descargar evidencia PDF │
                                     └─────────────────────────┘
 ```
 
